@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { SchemaField, SchemaFieldType } from '@/lib/types';
 import { Trash2, Plus } from 'lucide-react-native';
+import { Icon } from '../ui/icon';
 
 interface SchemaFieldEditorProps {
   field: SchemaField;
@@ -55,7 +56,7 @@ export function SchemaFieldEditor({ field, onChange, onDelete }: SchemaFieldEdit
       <CardHeader className="flex-row justify-between items-center">
         <CardTitle className="text-lg">Field Configuration</CardTitle>
         <Button variant="ghost" size="icon" onPress={onDelete}>
-          <Trash2 size={20} className="text-destructive" />
+          <Icon as={Trash2} size={24} className="text-destructive" />
         </Button>
       </CardHeader>
       <CardContent className="gap-4">

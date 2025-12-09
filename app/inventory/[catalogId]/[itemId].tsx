@@ -9,7 +9,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Trash2, Edit, X, Check } from 'lucide-react-native';
+import { Trash2, Edit, X, Check, Calendar, DollarSign, Hash, Type, List } from 'lucide-react-native';
 import { DynamicFieldRenderer } from '@/components/inventory/DynamicFieldRenderer';
 
 export default function ItemDetailScreen() {
@@ -148,16 +148,48 @@ export default function ItemDetailScreen() {
               ))
             ) : (
               // View mode: show formatted values
-              collection.schema.map((field) => (
-                <View key={field.key} className="gap-1">
-                  <Text className="text-sm font-medium text-muted-foreground">
-                    {field.label}
-                  </Text>
-                  <Text className="text-base">
-                    {formatValue(item.values[field.key], field.type)}
-                  </Text>
-                </View>
-              ))
+              collection.schema.map((field) => {
+                let DisplayIcon = Type;
+                let displayValue = formatValue(item.values[field.key], field.type);
+                let valueClass = "text-base font-medium";
+
+                switch (field.type) {
+                  case 'currency':
+                    DisplayIcon = DollarSign;
+                    valueClass = "text-lg font-bold text-primary";
+                    break;
+                  case 'number':
+                    DisplayIcon = Hash;
+                    break;
+                  case 'date':
+                    DisplayIcon = Calendar;
+                    break;
+                  case 'select':
+                    DisplayIcon = List;
+                    break;
+                  case 'boolean':
+                    DisplayIcon = item.values[field.key] ? Check : X;
+                    displayValue = item.values[field.key] ? 'Yes, Active' : 'No, Inactive';
+                    valueClass = item.values[field.key] ? "text-green-600 font-medium" : "text-muted-foreground";
+                    break;
+                }
+
+                return (
+                  <View key={field.key} className="flex-row items-center p-3 bg-muted/5 rounded-xl border border-border/40">
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-background border border-border/60 mr-4 shadow-sm">
+                      <Icon as={DisplayIcon} size={18} className="text-muted-foreground" />
+                    </View>
+                    <View className="flex-1 gap-0.5">
+                      <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        {field.label}
+                      </Text>
+                      <Text className={valueClass}>
+                        {displayValue}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
             )}
           </CardContent>
           {isEditing && (
