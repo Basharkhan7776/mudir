@@ -1,246 +1,231 @@
-import React, { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { SchemaFieldEditor } from '@/components/schema-builder/SchemaFieldEditor';
-import { SchemaField } from '@/lib/types';
-import { Plus } from 'lucide-react-native';
+import { Icon } from '@/components/ui/icon';
+import { Stack, useRouter } from 'expo-router';
+import { Plus, X, Type, Hash, ToggleLeft, Image as ImageIcon, Trash2 } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  ScrollView,
+  View,
+  TouchableOpacity,
+  Switch,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
 import { useDispatch } from 'react-redux';
 import { addCollection } from '@/lib/store/slices/inventorySlice';
-import { Icon } from '@/components/ui/icon';
+import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+type FieldType = 'text' | 'number' | 'boolean' | 'date' | 'image' | 'currency';
+
+interface SchemaField {
+  key: string;
+  label: string;
+  type: FieldType;
+  required: boolean;
+  defaultValue?: any;
+}
 
 export default function SchemaBuilderScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const [collectionName, setCollectionName] = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [fields, setFields] = useState<SchemaField[]>([]);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [fieldToDelete, setFieldToDelete] = useState<number | null>(null);
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [schema, setSchema] = useState<SchemaField[]>([
+    { key: 'name', label: 'Item Name', type: 'text', required: true },
+  ]);
 
-  const addField = () => {
+  const handleAddField = () => {
     const newField: SchemaField = {
       key: `field_${Date.now()}`,
-      label: 'New Field',
+      label: 'New Attribute',
       type: 'text',
       required: false,
     };
-    setFields([...fields, newField]);
+    setSchema([...schema, newField]);
   };
 
-  const updateField = (index: number, updatedField: SchemaField) => {
-    const newFields = [...fields];
-    newFields[index] = updatedField;
-    setFields(newFields);
+  const updateField = (index: number, updates: Partial<SchemaField>) => {
+    const newSchema = [...schema];
+    newSchema[index] = { ...newSchema[index], ...updates };
+    // Update key if label changes to simplify
+    if (updates.label) {
+      newSchema[index].key = updates.label.toLowerCase().replace(/\s+/g, '_');
+    }
+    setSchema(newSchema);
   };
 
-  const deleteField = (index: number) => {
-    setFieldToDelete(index);
-    setDeleteDialogOpen(true);
+  const removeField = (index: number) => {
+    if (index === 0) return; // Prevent removing primary field
+    const newSchema = schema.filter((_, i) => i !== index);
+    setSchema(newSchema);
   };
 
-  const confirmDeleteField = () => {
-    if (fieldToDelete !== null) {
-      const newFields = fields.filter((_, i) => i !== fieldToDelete);
-      setFields(newFields);
-      setDeleteDialogOpen(false);
-      setFieldToDelete(null);
-    }
-  };
+  const handleCreate = () => {
+    if (!name.trim()) return;
 
-  const validateAndCreate = () => {
-    // Validation
-    if (!collectionName.trim()) {
-      setErrorMessage('Please enter a collection name');
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    if (fields.length === 0) {
-      setErrorMessage('Please add at least one field');
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    // Check for duplicate field keys
-    const keys = fields.map((f) => f.key);
-    const uniqueKeys = new Set(keys);
-    if (keys.length !== uniqueKeys.size) {
-      setErrorMessage('Field keys must be unique. Please check for duplicates.');
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    // Check that all fields have labels
-    const hasEmptyLabels = fields.some((f) => !f.label.trim());
-    if (hasEmptyLabels) {
-      setErrorMessage('All fields must have labels');
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    // Check that select fields have options
-    const selectFieldsWithoutOptions = fields.filter(
-      (f) => f.type === 'select' && (!f.options || f.options.length === 0)
-    );
-    if (selectFieldsWithoutOptions.length > 0) {
-      setErrorMessage('Dropdown fields must have at least one option');
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    // Create collection
     dispatch(
       addCollection({
         id: Date.now().toString(),
-        name: collectionName.trim(),
-        description: description.trim() || undefined,
-        schema: fields,
+        name: name.trim(),
+        description: description.trim(),
+        schema: schema,
         data: [],
       })
     );
+    router.back();
+  };
 
-    setSuccessDialogOpen(true);
+  const getIconForType = (type: FieldType) => {
+    switch (type) {
+      case 'text':
+        return Type;
+      case 'number':
+        return Hash;
+      case 'boolean':
+        return ToggleLeft;
+      case 'image':
+        return ImageIcon;
+      default:
+        return Type;
+    }
   };
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Create Collection', headerShown: true }} />
-      <ScrollView contentContainerClassName="p-4 gap-4">
-        {/* Collection Basic Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Collection Information</CardTitle>
-          </CardHeader>
-          <CardContent className="gap-4">
-            <View className="gap-2">
-              <Text className="text-sm font-medium">Collection Name *</Text>
+      <Stack.Screen
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 bg-background">
+        <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6 pt-6">
+          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
+            <Icon as={X} size={24} className="text-foreground" />
+          </Button>
+          <Text className="text-lg font-bold text-foreground">New Collection</Text>
+          <Button variant="ghost" onPress={handleCreate} disabled={!name.trim()}>
+            <Text className={!name.trim() ? 'text-muted-foreground' : 'font-bold text-primary'}>
+              Create
+            </Text>
+          </Button>
+        </View>
+
+        <ScrollView contentContainerClassName="p-5 gap-8 pb-32">
+          {/* Identity Section */}
+          <View>
+            <Text className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Collection Identity
+            </Text>
+            <View className="rounded-2xl border border-border bg-card p-4 shadow-sm">
               <Input
-                placeholder="e.g., Laptops, Mobiles, Accessories"
-                value={collectionName}
-                onChangeText={setCollectionName}
+                className="h-auto border-0 p-0 text-4xl font-black text-foreground placeholder:text-muted-foreground/50"
+                placeholder="Sneakers"
+                value={name}
+                onChangeText={setName}
+                autoFocus
               />
-            </View>
-            <View className="gap-2">
-              <Text className="text-sm font-medium">Description (Optional)</Text>
               <Input
-                placeholder="Brief description of this collection"
+                className="mt-2 h-auto border-0 p-0 text-base text-muted-foreground"
+                placeholder="Add a description..."
                 value={description}
                 onChangeText={setDescription}
-                multiline
-                numberOfLines={2}
               />
             </View>
-          </CardContent>
-        </Card>
-
-        {/* Fields Section */}
-        <View className="gap-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-xl font-bold">Fields</Text>
-            <Button onPress={addField} size="sm">
-              <Icon as={Plus} size={16} className="text-primary-foreground mr-1" />
-              <Text className="text-primary-foreground">Add Field</Text>
-            </Button>
           </View>
 
-          {fields.length === 0 && (
-            <Card>
-              <CardContent className="items-center py-8">
-                <Text className="text-muted-foreground text-center">
-                  No fields yet. Tap "Add Field" to start building your collection schema.
-                </Text>
-              </CardContent>
-            </Card>
-          )}
+          {/* Schema Section */}
+          <View>
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="text-2xl font-bold text-foreground">Schema</Text>
+              <Text className="text-sm text-muted-foreground">
+                {schema.length} Attributes defined
+              </Text>
+            </View>
 
-          {fields.map((field, index) => (
-            <SchemaFieldEditor
-              key={index}
-              field={field}
-              onChange={(updatedField) => updateField(index, updatedField)}
-              onDelete={() => deleteField(index)}
-            />
-          ))}
+            <Text className="mb-6 text-muted-foreground">
+              Define the attributes for items in this collection. These fields will build your form.
+            </Text>
+
+            <View className="gap-4">
+              {schema.map((field, index) => (
+                <Animated.View
+                  key={index} // Ideally use unique ID, but index is okay for simple append
+                  layout={Layout.springify()}
+                  entering={FadeInDown}>
+                  <Card className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                    <CardContent className="flex-row items-center gap-3 p-4">
+                      <View className="flex-1 gap-2">
+                        <Input
+                          value={field.label}
+                          onChangeText={(text) => updateField(index, { label: text })}
+                          className="h-auto border-0 bg-transparent p-0 text-lg font-bold"
+                          placeholder="Attribute Name"
+                        />
+                      </View>
+
+                      <View className="flex-row items-center gap-2">
+                        <Select
+                          value={{ value: field.type, label: field.type.toUpperCase() }}
+                          onValueChange={(opt) =>
+                            opt && updateField(index, { type: opt.value as FieldType })
+                          }>
+                          <SelectTrigger className="h-9 w-[110px] rounded-full border-0 bg-muted/50 px-3">
+                            <SelectValue placeholder="Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem label="TEXT" value="text" />
+                              <SelectItem label="NUMBER" value="number" />
+                              <SelectItem label="BOOLEAN" value="boolean" />
+                              <SelectItem label="IMAGE" value="image" />
+                              <SelectItem label="DATE" value="date" />
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+
+                        {index !== 0 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full bg-destructive/10"
+                            onPress={() => removeField(index)}>
+                            <Icon as={Trash2} size={16} className="text-destructive" />
+                          </Button>
+                        )}
+                        {index === 0 && <View className="w-8" />}
+                      </View>
+                    </CardContent>
+                  </Card>
+                </Animated.View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+
+        <View className="absolute bottom-10 left-0 right-0 px-6">
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={handleAddField}
+            className="h-14 w-full flex-row items-center justify-center rounded-full bg-primary shadow-lg">
+            <Icon as={Plus} size={24} className="mr-2 text-primary-foreground" />
+            <Text className="text-lg font-bold text-primary-foreground">Add Attribute</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Action Buttons */}
-        <View className="flex-row gap-4 pb-8">
-          <Button variant="outline" className="flex-1" onPress={() => router.back()}>
-            <Text>Cancel</Text>
-          </Button>
-          <Button className="flex-1" onPress={validateAndCreate}>
-            <Text>Create Collection</Text>
-          </Button>
-        </View>
-      </ScrollView>
-
-      {/* Delete Field Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Field</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this field?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">
-                <Text>Cancel</Text>
-              </Button>
-            </DialogClose>
-            <Button variant="destructive" onPress={confirmDeleteField}>
-              <Text className="text-destructive-foreground">Delete</Text>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Error Dialog */}
-      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-            <DialogDescription>
-              {errorMessage}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button>
-                <Text>OK</Text>
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Success Dialog */}
-      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Success</DialogTitle>
-            <DialogDescription>
-              Collection created successfully
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button onPress={() => router.back()}>
-                <Text>OK</Text>
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </KeyboardAvoidingView>
     </>
   );
 }

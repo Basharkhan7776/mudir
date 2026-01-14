@@ -43,9 +43,12 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        '3xl': 'calc(var(--radius) + 10px)',
+        '2xl': 'var(--radius)',
+        xl: 'calc(var(--radius) - 2px)',
+        lg: 'calc(var(--radius) - 4px)',
+        md: 'calc(var(--radius) - 8px)',
+        sm: 'calc(var(--radius) - 12px)',
       },
       borderWidth: {
         hairline: hairlineWidth(),

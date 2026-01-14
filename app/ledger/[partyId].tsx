@@ -1,555 +1,410 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { addTransaction, updateOrganization, updateTransaction, deleteTransaction, deleteOrganization } from '@/lib/store/slices/ledgerSlice';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  addTransaction,
+  updateOrganization,
+  deleteOrganization,
+} from '@/lib/store/slices/ledgerSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { ArrowDownLeft, ArrowUpRight, Search, Edit, X, Check, Trash2, Printer } from 'lucide-react-native';
-import React, { useState, useMemo } from 'react';
-import { FlatList, View, Pressable, Platform, ActivityIndicator, InteractionManager } from 'react-native';
+import { ArrowLeft, Printer, MoreVertical, Edit, Trash2 } from 'lucide-react-native';
+import React, { useState, useMemo, useRef } from 'react';
+import {
+  FlatList,
+  View,
+  Pressable,
+  Platform,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+} from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useColorScheme } from 'nativewind';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { generateLedgerPDF } from '@/lib/pdfGenerator';
+import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function PartyScreen() {
-    const { partyId } = useLocalSearchParams<{ partyId: string }>();
-    const router = useRouter();
-    const entryStore = useSelector((state: RootState) =>
-        state.ledger.entries.find((e) => e.organization.id === partyId)
-    );
-    // Local cache to keep data alive during deletion animation
-    const [entry, setEntry] = useState(entryStore);
+  const { partyId } = useLocalSearchParams<{ partyId: string }>();
+  const router = useRouter();
+  const entryStore = useSelector((state: RootState) =>
+    state.ledger.entries.find((e) => e.organization.id === partyId)
+  );
+  // Local cache to keep data alive during deletion animation
+  const [entry, setEntry] = useState(entryStore);
 
-    React.useEffect(() => {
-        if (entryStore) {
-            setEntry(entryStore);
-        }
-    }, [entryStore]);
-
-    const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
-    const orgName = useSelector((state: RootState) => state.settings.organizationName);
-    const dispatch = useDispatch();
-    const { colorScheme } = useColorScheme();
-    const navigation = useNavigation();
-
-    // Ensure hooks are called before conditional return
-    const [isPrintingPDF, setIsPrintingPDF] = useState(false);
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isEditingOrg, setIsEditingOrg] = useState(false);
-    // Initialize with safe navigation operators as entry might be stale but valid
-    const [editedOrgName, setEditedOrgName] = useState(entry?.organization?.name ?? '');
-    const [editedOrgPhone, setEditedOrgPhone] = useState(entry?.organization?.phone ?? '');
-    const [editedOrgEmail, setEditedOrgEmail] = useState(entry?.organization?.email ?? '');
-    const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
-    const [editedTxnAmount, setEditedTxnAmount] = useState('');
-    const [editedTxnRemark, setEditedTxnRemark] = useState('');
-    const [editedTxnType, setEditedTxnType] = useState<'CREDIT' | 'DEBIT'>('DEBIT');
-    const [editedTxnDate, setEditedTxnDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
-    const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
-    const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [successDialogOpen, setSuccessDialogOpen] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
-
-    if (!entry) {
-        return (
-            <>
-                <Stack.Screen options={{ title: 'Party Not Found' }} />
-                <View className="flex-1 items-center justify-center">
-                    <Text>Party not found</Text>
-                </View>
-            </>
-        );
+  React.useEffect(() => {
+    if (entryStore) {
+      setEntry(entryStore);
     }
+  }, [entryStore]);
 
-    const handleDeleteOrg = () => {
-        // Navigate to the list screen first
-        if (navigation.canGoBack()) {
-            router.back();
-        } else {
-            router.replace('/ledger');
-        }
+  const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
+  const orgName = useSelector((state: RootState) => state.settings.organizationName);
+  const dispatch = useDispatch();
+  const { colorScheme } = useColorScheme();
+  const navigation = useNavigation();
 
-        // Delete after navigation transition is complete (increased timeout for safety)
-        setTimeout(() => {
-            dispatch(deleteOrganization(partyId));
-        }, 1000);
-    };
+  const [isPrintingPDF, setIsPrintingPDF] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
 
-    const handleTransaction = (type: 'CREDIT' | 'DEBIT') => {
-        if (amount && !isNaN(parseFloat(amount))) {
-            dispatch(addTransaction({
-                organizationId: partyId,
-                transaction: {
-                    id: Date.now().toString(),
-                    organizationId: partyId,
-                    type,
-                    amount: parseFloat(amount),
-                    date: new Date().toISOString(),
-                    remark: description.trim(),
-                }
-            }));
-            setAmount('');
-            setDescription('');
-        }
-    };
+  // Dialogs
+  const [isEditingOrg, setIsEditingOrg] = useState(false);
+  const [editedOrgName, setEditedOrgName] = useState(entry?.organization?.name ?? '');
+  const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
-    const filteredTransactions = useMemo(() => {
-        const reversed = [...entry.transactions].reverse();
-        if (!searchQuery.trim()) return reversed;
+  // Scroll ref
+  const flatListRef = useRef<FlatList>(null);
 
-        const query = searchQuery.toLowerCase();
-        return reversed.filter(transaction =>
-            transaction.amount.toString().includes(query) ||
-            transaction.remark?.toLowerCase().includes(query)
-        );
-    }, [entry.transactions, searchQuery]);
+  if (!entry) return null;
 
-    const handleSaveOrganization = () => {
-        if (!editedOrgName.trim()) {
-            setErrorMessage('Organization name cannot be empty');
-            setErrorDialogOpen(true);
-            return;
-        }
+  const netBalance = useMemo(() => {
+    return entry.transactions.reduce((acc, t) => {
+      return t.type === 'CREDIT' ? acc - t.amount : acc + t.amount;
+    }, 0);
+  }, [entry.transactions]);
 
-        dispatch(updateOrganization({
-            organizationId: partyId,
-            updates: {
-                name: editedOrgName.trim(),
-                phone: editedOrgPhone.trim(),
-                email: editedOrgEmail.trim(),
-            }
-        }));
-
-        setIsEditingOrg(false);
-        setSuccessMessage('Organization updated successfully');
-        setSuccessDialogOpen(true);
-    };
-
-    const handleCancelOrganizationEdit = () => {
-        setEditedOrgName(entry.organization.name);
-        setEditedOrgPhone(entry.organization.phone || '');
-        setEditedOrgEmail(entry.organization.email || '');
-        setIsEditingOrg(false);
-    };
-
-    const handleEditTransaction = (transaction: any) => {
-        setEditingTransactionId(transaction.id);
-        setEditedTxnAmount(transaction.amount.toString());
-        setEditedTxnRemark(transaction.remark || '');
-        setEditedTxnType(transaction.type);
-        setEditedTxnDate(new Date(transaction.date));
-    };
-
-    const handleSaveTransaction = () => {
-        if (!editedTxnAmount || isNaN(parseFloat(editedTxnAmount))) {
-            setErrorMessage('Please enter a valid amount');
-            setErrorDialogOpen(true);
-            return;
-        }
-
-        dispatch(updateTransaction({
-            organizationId: partyId,
-            transactionId: editingTransactionId!,
-            updates: {
-                amount: parseFloat(editedTxnAmount),
-                remark: editedTxnRemark.trim(),
-                type: editedTxnType,
-                date: editedTxnDate.toISOString(),
-            }
-        }));
-
-        setEditingTransactionId(null);
-        setSuccessMessage('Transaction updated successfully');
-        setSuccessDialogOpen(true);
-    };
-
-    const handleCancelTransactionEdit = () => {
-        setEditingTransactionId(null);
-        setEditedTxnAmount('');
-        setEditedTxnRemark('');
-        setEditedTxnType('DEBIT');
-        setEditedTxnDate(new Date());
-    };
-
-    const handleDateChange = (event: any, selectedDate?: Date) => {
-        setShowDatePicker(Platform.OS === 'ios');
-        if (selectedDate) {
-            setEditedTxnDate(selectedDate);
-        }
-    };
-
-    const handleDeleteTransaction = (transactionId: string) => {
-        setTransactionToDelete(transactionId);
-        setDeleteDialogOpen(true);
-    };
-
-    const confirmDeleteTransaction = () => {
-        if (transactionToDelete) {
-            dispatch(deleteTransaction({
-                organizationId: partyId,
-                transactionId: transactionToDelete
-            }));
-            setDeleteDialogOpen(false);
-            setTransactionToDelete(null);
-        }
-    };
-
-    const handlePrintPDF = async () => {
-        try {
-            setIsPrintingPDF(true);
-            await generateLedgerPDF(
-                entry.organization,
-                entry.transactions,
-                currencySymbol,
-                orgName || 'Mudir'
-            );
-            setSuccessMessage('PDF generated successfully!');
-            setSuccessDialogOpen(true);
-        } catch (error) {
-            setErrorMessage('Failed to generate PDF. Please try again.');
-            setErrorDialogOpen(true);
-        } finally {
-            setIsPrintingPDF(false);
-        }
-    };
-
-    return (
-        <>
-            <Stack.Screen
-                options={{
-                    title: entry.organization.name,
-                    headerShown: true,
-                    headerRight: () => (
-                        <View style={{ flexDirection: 'row', marginRight: 8 }}>
-                            <Pressable
-                                onPress={() => setDeleteOrgOpen(true)}
-                                style={{ padding: 8 }}
-                            >
-                                <Icon as={Trash2} size={22} className="text-destructive" />
-                            </Pressable>
-                            <Pressable
-                                onPress={handlePrintPDF}
-                                style={{ padding: 8 }}
-                                disabled={isPrintingPDF}
-                            >
-                                {isPrintingPDF ? (
-                                    <ActivityIndicator size="small" color={colorScheme === 'dark' ? '#fff' : '#000'} />
-                                ) : (
-                                    <Icon as={Printer} size={22} className="text-foreground" />
-                                )}
-                            </Pressable>
-                            <Pressable
-                                onPress={() => setIsEditingOrg(!isEditingOrg)}
-                                style={{ padding: 8 }}
-                            >
-                                {isEditingOrg ? (
-                                    <Icon as={X} size={24} className="text-foreground" />
-                                ) : (
-                                    <Icon as={Edit} size={22} className="text-foreground" />
-                                )}
-                            </Pressable>
-                        </View>
-                    )
-                }}
-            />
-            <View className="flex-1 p-4 gap-4">
-                {/* Search Bar */}
-                <View className="flex-row items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-                    <Icon as={Search} size={20} className="text-muted-foreground" />
-                    <Input
-                        placeholder="Search by amount or remark..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        className="flex-1 border-0 bg-transparent"
-                    />
-                </View>
-
-                {/* Organization Details Card */}
-                {isEditingOrg && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Edit Organization</CardTitle>
-                        </CardHeader>
-                        <CardContent className="gap-4">
-                            <View className="gap-2">
-                                <Text className="text-sm font-medium">Name *</Text>
-                                <Input
-                                    placeholder="Organization Name"
-                                    value={editedOrgName}
-                                    onChangeText={setEditedOrgName}
-                                />
-                            </View>
-                            <View className="gap-2">
-                                <Text className="text-sm font-medium">Phone</Text>
-                                <Input
-                                    placeholder="Phone Number"
-                                    value={editedOrgPhone}
-                                    onChangeText={setEditedOrgPhone}
-                                    keyboardType="phone-pad"
-                                />
-                            </View>
-                            <View className="gap-2">
-                                <Text className="text-sm font-medium">Email</Text>
-                                <Input
-                                    placeholder="Email Address"
-                                    value={editedOrgEmail}
-                                    onChangeText={setEditedOrgEmail}
-                                    keyboardType="email-address"
-                                />
-                            </View>
-                            <View className="flex-row gap-2">
-                                <Button variant="outline" className="flex-1" onPress={handleCancelOrganizationEdit}>
-                                    <Text>Cancel</Text>
-                                </Button>
-                                <Button className="flex-1" onPress={handleSaveOrganization}>
-                                    <Check size={18} className="text-primary-foreground mr-2" />
-                                    <Text>Save</Text>
-                                </Button>
-                            </View>
-                        </CardContent>
-                    </Card>
-                )}
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>New Transaction</CardTitle>
-                    </CardHeader>
-                    <CardContent className="gap-4">
-                        <Input
-                            placeholder="Amount"
-                            value={amount}
-                            onChangeText={setAmount}
-                            keyboardType="numeric"
-                        />
-                        <Input
-                            placeholder="Description (Optional)"
-                            value={description}
-                            onChangeText={setDescription}
-                        />
-                        <View className="flex-row gap-4">
-                            <Button
-                                className="flex-1 bg-red-600"
-                                onPress={() => handleTransaction('CREDIT')}
-                            >
-                                <Text className="text-white">You Gave (Credit)</Text>
-                            </Button>
-                            <Button
-                                className="flex-1 bg-green-600"
-                                onPress={() => handleTransaction('DEBIT')}
-                            >
-                                <Text className="text-white">You Took (Debit)</Text>
-                            </Button>
-                        </View>
-                    </CardContent>
-                </Card>
-
-                <FlatList
-                    data={filteredTransactions}
-                    keyExtractor={(item) => item.id}
-                    contentContainerClassName="gap-4"
-                    renderItem={({ item }) => (
-                        editingTransactionId === item.id ? (
-                            // Edit mode
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Edit Transaction</CardTitle>
-                                </CardHeader>
-                                <CardContent className="gap-4">
-                                    <View className="gap-2">
-                                        <Text className="text-sm font-medium">Amount *</Text>
-                                        <Input
-                                            placeholder="Amount"
-                                            value={editedTxnAmount}
-                                            onChangeText={setEditedTxnAmount}
-                                            keyboardType="numeric"
-                                        />
-                                    </View>
-                                    <View className="gap-2">
-                                        <Text className="text-sm font-medium">Remark</Text>
-                                        <Input
-                                            placeholder="Remark (Optional)"
-                                            value={editedTxnRemark}
-                                            onChangeText={setEditedTxnRemark}
-                                        />
-                                    </View>
-                                    <View className="gap-2">
-                                        <Text className="text-sm font-medium">Type *</Text>
-                                        <View className="flex-row gap-4">
-                                            <Button
-                                                variant={editedTxnType === 'CREDIT' ? 'default' : 'outline'}
-                                                className="flex-1"
-                                                onPress={() => setEditedTxnType('CREDIT')}
-                                            >
-                                                <Text>You Gave (Credit)</Text>
-                                            </Button>
-                                            <Button
-                                                variant={editedTxnType === 'DEBIT' ? 'default' : 'outline'}
-                                                className="flex-1"
-                                                onPress={() => setEditedTxnType('DEBIT')}
-                                            >
-                                                <Text>You Took (Debit)</Text>
-                                            </Button>
-                                        </View>
-                                    </View>
-                                    <View className="gap-2">
-                                        <Text className="text-sm font-medium">Date *</Text>
-                                        <Pressable onPress={() => setShowDatePicker(true)}>
-                                            <View pointerEvents="none">
-                                                <Input
-                                                    value={editedTxnDate.toLocaleDateString()}
-                                                    editable={false}
-                                                />
-                                            </View>
-                                        </Pressable>
-                                        {showDatePicker && (
-                                            <DateTimePicker
-                                                value={editedTxnDate}
-                                                mode="date"
-                                                display="default"
-                                                onChange={handleDateChange}
-                                            />
-                                        )}
-                                    </View>
-                                    <View className="flex-row gap-2">
-                                        <Button variant="outline" className="flex-1" onPress={handleCancelTransactionEdit}>
-                                            <Text>Cancel</Text>
-                                        </Button>
-                                        <Button className="flex-1" onPress={handleSaveTransaction}>
-                                            <Check size={18} className="text-primary-foreground mr-2" />
-                                            <Text>Save</Text>
-                                        </Button>
-                                    </View>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            // View mode
-                            <Card>
-                                <CardContent className="flex-row justify-between items-center p-4">
-                                    <View className="flex-row items-center gap-2 flex-1">
-                                        {item.type === 'CREDIT' ? (
-                                            <Icon as={ArrowUpRight} size={24} className="text-foreground" />
-                                        ) : (
-                                            <Icon as={ArrowDownLeft} size={24} className="text-foreground" />
-                                        )}
-                                        <View className="flex-1">
-                                            <Text className="font-bold">{item.type === 'CREDIT' ? 'You Gave' : 'You Took'}</Text>
-                                            <Text className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</Text>
-                                            {item.remark && <Text className="text-xs text-muted-foreground">{item.remark}</Text>}
-                                        </View>
-                                    </View>
-                                    <View className="flex-row items-center gap-2">
-                                        <Text className={`font-bold ${item.type === 'CREDIT' ? 'text-red-600' : 'text-green-600'}`}>
-                                            {currencySymbol}{item.amount}
-                                        </Text>
-                                        <Pressable onPress={() => handleEditTransaction(item)} style={{ padding: 4 }}>
-                                            <Icon as={Edit} size={18} className="text-muted-foreground" />
-                                        </Pressable>
-                                        <Pressable onPress={() => handleDeleteTransaction(item.id)} style={{ padding: 4 }}>
-                                            <Icon as={Trash2} size={18} className="text-destructive" />
-                                        </Pressable>
-                                    </View>
-                                </CardContent>
-                            </Card>
-                        )
-                    )}
-                    ListEmptyComponent={
-                        <View className="items-center justify-center p-8">
-                            <Text className="text-muted-foreground">No transactions yet.</Text>
-                        </View>
-                    }
-                />
-
-                {/* Delete Transaction Dialog */}
-                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Delete Transaction</DialogTitle>
-                            <DialogDescription>
-                                Are you sure you want to delete this transaction? This action cannot be undone.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="outline">
-                                    <Text>Cancel</Text>
-                                </Button>
-                            </DialogClose>
-                            <Button variant="destructive" onPress={confirmDeleteTransaction}>
-                                <Text className="text-destructive-foreground">Delete</Text>
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Delete Organization Dialog */}
-                <AlertDialog open={deleteOrgOpen} onOpenChange={setDeleteOrgOpen}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Organization</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Are you sure you want to delete "{entry.organization.name}"? This will permanently delete all associated transactions. This action cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>
-                                <Text>Cancel</Text>
-                            </AlertDialogCancel>
-                            <AlertDialogAction onPress={handleDeleteOrg} className="bg-destructive">
-                                <Text className="text-destructive-foreground">Delete</Text>
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-
-                {/* Error Dialog */}
-                <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Error</DialogTitle>
-                            <DialogDescription>
-                                {errorMessage}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button>
-                                    <Text>OK</Text>
-                                </Button>
-                            </DialogClose>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Success Dialog */}
-                <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Success</DialogTitle>
-                            <DialogDescription>
-                                {successMessage}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button>
-                                    <Text>OK</Text>
-                                </Button>
-                            </DialogClose>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </View>
-        </>
+  const groupedTransactions = useMemo(() => {
+    const sorted = [...entry.transactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+    const groups: { title: string; data: typeof sorted }[] = [];
+
+    sorted.forEach((txn) => {
+      const date = new Date(txn.date);
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      let title = date.toLocaleDateString();
+      if (date.toDateString() === today.toDateString()) title = 'Today';
+      else if (date.toDateString() === yesterday.toDateString()) title = 'Yesterday';
+
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.title === title) {
+        lastGroup.data.push(txn);
+      } else {
+        groups.push({ title, data: [txn] });
+      }
+    });
+    return groups;
+  }, [entry.transactions]);
+
+  // Flatten for FlatList
+  const flatListData = useMemo(() => {
+    const data: any[] = [];
+    groupedTransactions.forEach((group) => {
+      data.push({ type: 'header', title: group.title, id: `header-${group.title}` });
+      group.data.forEach((txn) => data.push({ ...txn }));
+    });
+    return data; // Reverse order not needed as we map chronologically for chat interface? Usually chat is bottom-up.
+    // Let's stick to top-down for now like the mockup (Latest at bottom?)
+    // Mockup shows "Yesterday" then "Today" below it. So chronological top-down.
+  }, [groupedTransactions]);
+
+  const handleTransaction = (type: 'CREDIT' | 'DEBIT') => {
+    if (amount && !isNaN(parseFloat(amount))) {
+      dispatch(
+        addTransaction({
+          organizationId: partyId,
+          transaction: {
+            id: Date.now().toString(),
+            organizationId: partyId,
+            type,
+            amount: parseFloat(amount),
+            date: new Date().toISOString(),
+            remark: description.trim(),
+          },
+        })
+      );
+      setAmount('');
+      setDescription('');
+      // Scroll to bottom
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  };
+
+  const handleDeleteOrg = () => {
+    if (navigation.canGoBack()) router.back();
+    else router.replace('/ledger');
+    setTimeout(() => dispatch(deleteOrganization(partyId)), 1000);
+  };
+
+  const handleSaveOrganization = () => {
+    if (!editedOrgName.trim()) return;
+    dispatch(
+      updateOrganization({
+        organizationId: partyId,
+        updates: { name: editedOrgName.trim() },
+      })
+    );
+    setIsEditingOrg(false);
+  };
+
+  const handlePrintPDF = async () => {
+    try {
+      setIsPrintingPDF(true);
+      await generateLedgerPDF(
+        entry.organization,
+        entry.transactions,
+        currencySymbol,
+        orgName || 'Mudir'
+      );
+      setSuccessMessage('PDF generated successfully!');
+      setSuccessDialogOpen(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsPrintingPDF(false);
+    }
+  };
+
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View className="flex-1 bg-background pt-12">
+        {/* Header */}
+        <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">
+          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+          </Button>
+          <View className="items-center">
+            <Text className="text-lg font-bold text-foreground">{entry.organization.name}</Text>
+            <Text className="mt-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              Net Balance
+            </Text>
+            <Text className="mt-1 text-3xl font-black text-foreground">
+              {currencySymbol}{' '}
+              {Math.abs(netBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </Text>
+            <View
+              className={`mt-1 rounded-full px-2 py-0.5 ${netBalance > 0 ? 'bg-green-100 dark:bg-green-900' : netBalance < 0 ? 'bg-red-100 dark:bg-red-900' : 'bg-gray-100'}`}>
+              <Text
+                className={`text-[10px] font-bold ${netBalance > 0 ? 'text-green-700 dark:text-green-300' : netBalance < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-500'}`}>
+                {netBalance > 0 ? 'YOU WILL GET' : netBalance < 0 ? 'YOU WILL GIVE' : 'SETTLED'}
+              </Text>
+            </View>
+          </View>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                {isPrintingPDF ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <Icon as={MoreVertical} size={24} className="text-foreground" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onPress={handlePrintPDF}>
+                <Icon as={Printer} size={16} className="mr-2 text-foreground" />
+                <Text>Save PDF</Text>
+              </DropdownMenuItem>
+              <DropdownMenuItem onPress={() => setIsEditingOrg(true)}>
+                <Icon as={Edit} size={16} className="mr-2 text-foreground" />
+                <Text>Edit Name</Text>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onPress={() => setDeleteOrgOpen(true)}>
+                <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
+                <Text className="text-destructive">Delete Party</Text>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </View>
+
+        {/* Content */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          className="flex-1">
+          <FlatList
+            ref={flatListRef}
+            data={flatListData}
+            keyExtractor={(item) => item.id}
+            contentContainerClassName="p-4 pb-24"
+            contentContainerStyle={{ flexGrow: 1 }}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            renderItem={({ item }) => {
+              if (item.type === 'header') {
+                return (
+                  <View className="my-4 items-center">
+                    <View className="rounded-full bg-muted px-3 py-1">
+                      <Text className="text-xs font-semibold text-muted-foreground">
+                        {item.title}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
+
+              // Transaction Item (DEBIT = LEFT/Received?, CREDIT = RIGHT/Paid?)
+              // Logic check:
+              // DEBIT usually means "You Gave" in this app context (from previous code: You Took (Debit)).
+              // Wait, "You Took (Debit)" means I owe them (Liability).
+              // "You Gave (Credit)" means they owe me (Asset).
+              // Let's align with the mockup:
+              // Left side: Light Gray bubble. Right side: Black bubble.
+              // Usually Right side is "Me" (User). Left side is "Them".
+
+              // Let's assume:
+              // CREDIT (You Gave) -> Asset -> Right Side (Black Bubble)
+              // DEBIT (You Took) -> Liability -> Left Side (Gray Bubble)
+
+              const isCredit = item.type === 'CREDIT';
+
+              return (
+                <Animated.View
+                  entering={FadeInUp.duration(300)}
+                  className={`mb-3 flex-row ${isCredit ? 'justify-end' : 'justify-start'}`}>
+                  <View
+                    className={`max-w-[80%] px-5 py-3 shadow-sm ${
+                      isCredit
+                        ? 'rounded-[28px] rounded-tr-none bg-black'
+                        : 'rounded-[28px] rounded-tl-none bg-gray-100'
+                    }`}>
+                    {item.remark ? (
+                      <Text
+                        className={`mb-0.5 text-[10px] font-bold uppercase tracking-wider opacity-60 ${isCredit ? 'text-white' : 'text-black'}`}>
+                        {item.remark}
+                      </Text>
+                    ) : null}
+                    <Text
+                      className={`text-2xl font-black ${isCredit ? 'text-white' : 'text-black'}`}>
+                      {isCredit ? '+' : '-'} {currencySymbol}
+                      {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                </Animated.View>
+              );
+            }}
+          />
+
+          {/* Footer Input Area */}
+          <View className="border-t border-border bg-card p-4">
+            <View className="mb-4 flex-row gap-4">
+              {/* Amount Input */}
+              <View className="flex-[1.2] justify-center rounded-2xl bg-muted px-4 py-3">
+                <Text className="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground opacity-70">
+                  AMOUNT
+                </Text>
+                <View className="flex-row items-center">
+                  <Text className="mr-1 text-lg font-bold text-muted-foreground">
+                    {currencySymbol}
+                  </Text>
+                  <Input
+                    className="h-8 flex-1 border-0 bg-transparent p-0 text-xl font-bold leading-tight"
+                    placeholder="0.00"
+                    keyboardType="numeric"
+                    value={amount}
+                    onChangeText={setAmount}
+                  />
+                </View>
+              </View>
+
+              {/* Description Input */}
+              <View className="flex-[1.8] justify-center rounded-2xl bg-muted px-4 py-3">
+                <Input
+                  className="h-14 border-0 bg-transparent p-0 text-base leading-tight"
+                  placeholder="Add description..."
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  textAlignVertical="center"
+                />
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View className="mb-2 h-14 flex-row gap-4">
+              <Pressable
+                onPress={() => handleTransaction('DEBIT')}
+                className="flex-1 items-center justify-center rounded-full border border-border bg-white shadow-sm active:scale-95">
+                <Text className="text-lg font-bold text-black">DEBIT (-)</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleTransaction('CREDIT')}
+                className="flex-1 items-center justify-center rounded-full bg-black shadow-sm active:scale-95">
+                <Text className="text-lg font-bold text-white">CREDIT (+)</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+
+        {/* Edit Organization Dialog */}
+        <Dialog open={isEditingOrg} onOpenChange={setIsEditingOrg}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Name</DialogTitle>
+            </DialogHeader>
+            <Input value={editedOrgName} onChangeText={setEditedOrgName} />
+            <DialogFooter>
+              <Button onPress={handleSaveOrganization}>
+                <Text>Save</Text>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <Dialog open={deleteOrgOpen} onOpenChange={setDeleteOrgOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Party?</DialogTitle>
+              <DialogDescription>This cannot be undone.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onPress={() => setDeleteOrgOpen(false)}>
+                <Text>Cancel</Text>
+              </Button>
+              <Button variant="destructive" onPress={handleDeleteOrg}>
+                <Text>Delete</Text>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Success Dialog */}
+        <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Success</DialogTitle>
+              <DialogDescription>{successMessage}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button>
+                  <Text>OK</Text>
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </View>
+    </>
+  );
 }

@@ -8,8 +8,26 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Trash2, Edit, X, Check, Calendar, DollarSign, Hash, Type, List } from 'lucide-react-native';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  Trash2,
+  Edit,
+  X,
+  Check,
+  Calendar,
+  DollarSign,
+  Hash,
+  Type,
+  List,
+} from 'lucide-react-native';
 import { DynamicFieldRenderer } from '@/components/inventory/DynamicFieldRenderer';
 
 export default function ItemDetailScreen() {
@@ -74,7 +92,7 @@ export default function ItemDetailScreen() {
 
   const handleSave = () => {
     // Validate required fields
-    const isValid = collection.schema.every(field => {
+    const isValid = collection.schema.every((field) => {
       if (field.required && !editedValues[field.key]) return false;
       return true;
     });
@@ -85,11 +103,13 @@ export default function ItemDetailScreen() {
       return;
     }
 
-    dispatch(updateItem({
-      collectionId: catalogId,
-      itemId,
-      updates: editedValues
-    }));
+    dispatch(
+      updateItem({
+        collectionId: catalogId,
+        itemId,
+        updates: editedValues,
+      })
+    );
 
     setIsEditing(false);
     setSuccessDialogOpen(true);
@@ -101,7 +121,7 @@ export default function ItemDetailScreen() {
   };
 
   const updateValue = (key: string, value: any) => {
-    setEditedValues(prev => ({ ...prev, [key]: value }));
+    setEditedValues((prev) => ({ ...prev, [key]: value }));
   };
 
   const formatValue = (value: any, fieldType: string) => {
@@ -123,121 +143,113 @@ export default function ItemDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Item Details',
-          headerShown: true,
-          headerRight: () => (
-            <Pressable
-              onPress={() => setIsEditing(!isEditing)}
-              style={{ padding: 8, marginRight: 8 }}
-            >
-              {isEditing ? (
-                <Icon as={X} size={24} className="text-foreground" />
-              ) : (
-                <Icon as={Edit} size={22} className="text-foreground" />
-              )}
+          headerTitle: () => (
+            <Text className="text-sm font-bold uppercase tracking-widest text-foreground">
+              ITEM DETAILS
+            </Text>
+          ),
+          headerTitleAlign: 'center',
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} className="-ml-2 p-2">
+              <Icon as={X} size={24} className="text-foreground" />
             </Pressable>
-          )
+          ),
+          headerRight: () => null, // Remove Edit button from header
         }}
       />
-      <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
-        {/* Main Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {(isEditing ? editedValues : item.values)[collection.schema[0]?.key] || 'Untitled Item'}
-            </CardTitle>
-            <Text className="text-sm text-muted-foreground">
-              Created: {new Date(item.createdAt).toLocaleString()}
+      <View className="flex-1 bg-background">
+        <ScrollView className="flex-1" contentContainerClassName="p-6 pb-24">
+          {/* Header Title Section */}
+          <View className="mb-6">
+            <Text className="mb-1 text-3xl font-black text-foreground">
+              {(isEditing ? editedValues : item.values)[collection.schema[0]?.key] ||
+                'Untitled Item'}
             </Text>
-          </CardHeader>
-        </Card>
+            <Text className="text-sm font-medium text-muted-foreground">
+              Added:{' '}
+              {new Date(item.createdAt).toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}{' '}
+              by Admin
+            </Text>
+          </View>
 
-        {/* All Fields */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{isEditing ? 'Edit Details' : 'Details'}</CardTitle>
-          </CardHeader>
-          <CardContent className="gap-4">
-            {isEditing ? (
-              // Edit mode: show dynamic field renderers
-              collection.schema.map((field) => (
-                <DynamicFieldRenderer
-                  key={field.key}
-                  field={field}
-                  value={editedValues[field.key] ?? field.defaultValue}
-                  onChange={(value) => updateValue(field.key, value)}
-                />
-              ))
-            ) : (
-              // View mode: show formatted values
-              collection.schema.map((field) => {
-                let DisplayIcon = Type;
-                let displayValue = formatValue(item.values[field.key], field.type);
-                let valueClass = "text-base font-medium";
+          {/* Divider */}
+          <View className="mb-6 h-[1px] bg-border" />
 
-                switch (field.type) {
-                  case 'currency':
-                    DisplayIcon = DollarSign;
-                    valueClass = "text-lg font-bold text-primary";
-                    break;
-                  case 'number':
-                    DisplayIcon = Hash;
-                    break;
-                  case 'date':
-                    DisplayIcon = Calendar;
-                    break;
-                  case 'select':
-                    DisplayIcon = List;
-                    break;
-                  case 'boolean':
-                    DisplayIcon = item.values[field.key] ? Check : X;
-                    displayValue = item.values[field.key] ? 'Yes, Active' : 'No, Inactive';
-                    valueClass = item.values[field.key] ? "text-green-600 font-medium" : "text-muted-foreground";
-                    break;
-                }
+          {/* Content Area */}
+          <View className="gap-6">
+            {isEditing
+              ? // Edit Form
+                collection.schema.map((field) => (
+                  <DynamicFieldRenderer
+                    key={field.key}
+                    field={field}
+                    value={editedValues[field.key] ?? field.defaultValue}
+                    onChange={(value) => updateValue(field.key, value)}
+                  />
+                ))
+              : // Clean Details List
+                collection.schema.map((field) => {
+                  // Skip the main title field (assumed first) in the details list if desired,
+                  // but typically inventory details show all fields.
 
-                return (
-                  <View key={field.key} className="flex-row items-center p-3 bg-muted/5 rounded-xl border border-border/40">
-                    <View className="h-10 w-10 items-center justify-center rounded-full bg-background border border-border/60 mr-4 shadow-sm">
-                      <Icon as={DisplayIcon} size={18} className="text-muted-foreground" />
-                    </View>
-                    <View className="flex-1 gap-0.5">
-                      <Text className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  let displayValue = formatValue(item.values[field.key], field.type);
+
+                  // Simplified styling for specific types
+                  const isCurrency = field.type === 'currency';
+
+                  return (
+                    <View
+                      key={field.key}
+                      className="flex-row items-center justify-between border-b border-gray-100 py-2 dark:border-gray-800">
+                      <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                         {field.label}
                       </Text>
-                      <Text className={valueClass}>
+                      <Text
+                        className={`text-base font-semibold ${isCurrency ? 'font-bold' : 'text-foreground'}`}>
                         {displayValue}
                       </Text>
                     </View>
-                  </View>
-                );
-              })
-            )}
-          </CardContent>
-          {isEditing && (
-            <CardFooter className="flex-row gap-2">
-              <Button variant="outline" className="flex-1" onPress={handleCancel}>
+                  );
+                })}
+          </View>
+        </ScrollView>
+
+        {/* Fixed Footer Actions */}
+        <View className="safe-bottom absolute bottom-0 left-0 right-0 border-t border-gray-100 bg-background p-4 dark:border-gray-800">
+          {isEditing ? (
+            <View className="flex-row gap-4">
+              <Button variant="outline" className="h-12 flex-1 rounded-xl" onPress={handleCancel}>
                 <Text>Cancel</Text>
               </Button>
-              <Button className="flex-1" onPress={handleSave}>
-                <Icon as={Check} size={18} className="text-primary-foreground mr-2" />
-                <Text>Save</Text>
+              <Button
+                className="h-12 flex-1 rounded-xl bg-black dark:bg-white"
+                onPress={handleSave}>
+                <Text className="font-bold text-white dark:text-black">Save Changes</Text>
               </Button>
-            </CardFooter>
+            </View>
+          ) : (
+            <View className="flex-row gap-4">
+              <Button
+                variant="outline"
+                className="h-12 flex-1 rounded-xl border-gray-200 dark:border-gray-700"
+                onPress={handleDelete}>
+                <Icon as={Trash2} size={18} className="mr-2 text-foreground" />
+                <Text className="font-bold text-foreground">Delete</Text>
+              </Button>
+              <Button
+                className="h-12 flex-[1.5] rounded-xl bg-black dark:bg-white"
+                onPress={() => setIsEditing(true)}>
+                <Icon as={Edit} size={18} className="mr-2 text-white dark:text-black" />
+                <Text className="font-bold text-white dark:text-black">Edit Item</Text>
+              </Button>
+            </View>
           )}
-        </Card>
-
-        {/* Actions */}
-        {!isEditing && (
-          <Button
-            variant="destructive"
-            onPress={handleDelete}
-            className="flex-row items-center justify-center gap-2"
-          >
-            <Icon as={Trash2} size={20} className="text-destructive-foreground" />
-            <Text className="text-destructive-foreground">Delete Item</Text>
-          </Button>
-        )}
+        </View>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -266,9 +278,7 @@ export default function ItemDetailScreen() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Error</DialogTitle>
-              <DialogDescription>
-                {errorMessage}
-              </DialogDescription>
+              <DialogDescription>{errorMessage}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <DialogClose asChild>
@@ -285,9 +295,7 @@ export default function ItemDetailScreen() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Success</DialogTitle>
-              <DialogDescription>
-                Item updated successfully
-              </DialogDescription>
+              <DialogDescription>Item updated successfully</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <DialogClose asChild>
@@ -298,7 +306,7 @@ export default function ItemDetailScreen() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </ScrollView>
+      </View>
     </>
   );
 }

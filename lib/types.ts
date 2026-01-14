@@ -1,4 +1,4 @@
-export type SchemaFieldType = 'text' | 'number' | 'select' | 'currency' | 'date' | 'boolean';
+export type SchemaFieldType = 'text' | 'number' | 'select' | 'currency' | 'date' | 'boolean' | 'image';
 
 export type SchemaField = {
   key: string;

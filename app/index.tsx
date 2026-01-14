@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { Link, Stack } from 'expo-router';
-import { LayoutList, Settings, Users } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { ArrowRight, Box, CreditCard, Search, Settings } from 'lucide-react-native';
+import React from 'react';
+import { Platform, ScrollView, View, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
@@ -12,100 +12,167 @@ import { Icon } from '@/components/ui/icon';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/lib/store';
 import { completeOnboarding } from '@/lib/store/slices/settingsSlice';
-import { setCollections } from '@/lib/store/slices/inventorySlice';
-import { setLedger } from '@/lib/store/slices/ledgerSlice';
-import { seedDatabase } from '@/lib/seed';
-import { seedData } from '@/lib/seedData';
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const isNewUser = useSelector((state: RootState) => state.settings.isNewUser);
+  const collections = useSelector((state: RootState) => state.inventory.collections);
+  const ledgerEntries = useSelector((state: RootState) => state.ledger.entries);
+  const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
 
-  // Silently complete onboarding on first launch to clear the flag
+  const totalItems = collections.reduce((acc, c) => acc + c.data.length, 0);
+  const totalLedgerBalance = ledgerEntries.reduce((acc, entry) => {
+    return (
+      acc +
+      entry.transactions.reduce(
+        (tAcc, t) => (t.type === 'CREDIT' ? tAcc - t.amount : tAcc + t.amount),
+        0
+      )
+    );
+  }, 0);
+
+  // Silently complete onboarding
   React.useEffect(() => {
     if (isNewUser) {
       dispatch(completeOnboarding());
     }
   }, [isNewUser]);
 
+  const formatBalance = (amount: number) => {
+    if (Math.abs(amount) >= 1000) {
+      return (amount / 1000).toFixed(1) + 'k';
+    }
+    return amount.toString();
+  };
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
-        contentContainerClassName="p-4 gap-6"
+        contentContainerClassName="p-5 gap-6"
         style={{ paddingTop: insets.top }}
-      >
+        showsVerticalScrollIndicator={false}>
         <Animated.View
-          className="items-center py-8"
-          entering={Platform.OS !== 'web' ? FadeInUp.duration(400).damping(30).withInitialValues({ opacity: 0 }) : undefined}
-        >
-          <Text className="text-3xl font-bold text-primary">Mudir</Text>
-          <Text className="text-muted-foreground">Shopkeeper's Assistant</Text>
+          className="mb-2 flex-row items-center justify-between py-2"
+          entering={Platform.OS !== 'web' ? FadeInUp.duration(400).damping(30) : undefined}>
+          <Text className="text-4xl font-black tracking-tight text-foreground">Mudir</Text>
         </Animated.View>
 
-        <View className="gap-4">
+        <View className="gap-5">
+          {/* Inventory Card */}
           <Animated.View
-            entering={Platform.OS !== 'web' ? createStaggeredAnimation(0, FadeInDown).withInitialValues({ opacity: 0 }) : undefined}
-          >
+            entering={Platform.OS !== 'web' ? createStaggeredAnimation(0, FadeInDown) : undefined}>
             <Link href="/inventory" asChild>
-              <Button variant="outline" className="h-auto p-0">
-                <Card className="w-full border-0 shadow-sm bg-card">
-                  <CardHeader className="flex-row items-center gap-4">
-                    <View className="p-3 bg-blue-100 rounded-full dark:bg-blue-900">
-                      <Icon as={LayoutList} size={24} className="text-foreground" />
+              <TouchableOpacity activeOpacity={0.9}>
+                <Card className="h-64 w-full justify-between overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
+                  <CardContent className="h-full justify-between p-6">
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <Icon as={Box} size={20} className="text-muted-foreground" />
+                        <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Inventory
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <CardTitle>Inventory</CardTitle>
-                      <CardDescription>Manage catalogs and items</CardDescription>
+
+                    <View>
+                      <Text className="-ml-1 text-6xl font-black tracking-tighter text-foreground">
+                        {totalItems.toLocaleString()}
+                      </Text>
                     </View>
-                  </CardHeader>
+
+                    <View className="flex-row items-center justify-between border-t border-gray-100 pt-4 dark:border-zinc-800">
+                      <Text className="text-lg font-semibold text-foreground">
+                        Manage Collections
+                      </Text>
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-black dark:bg-white">
+                        <Icon as={ArrowRight} size={20} className="text-white dark:text-black" />
+                      </View>
+                    </View>
+                  </CardContent>
                 </Card>
-              </Button>
+              </TouchableOpacity>
             </Link>
           </Animated.View>
 
+          {/* Ledger Card */}
           <Animated.View
-            entering={Platform.OS !== 'web' ? createStaggeredAnimation(1, FadeInDown).withInitialValues({ opacity: 0 }) : undefined}
-          >
+            entering={Platform.OS !== 'web' ? createStaggeredAnimation(1, FadeInDown) : undefined}>
             <Link href="/ledger" asChild>
-              <Button variant="outline" className="h-auto p-0">
-                <Card className="w-full border-0 shadow-sm bg-card">
-                  <CardHeader className="flex-row items-center gap-4">
-                    <View className="p-3 bg-green-100 rounded-full dark:bg-green-900">
-                      <Icon as={Users} size={24} className="text-green-600 dark:text-green-100" />
+              <TouchableOpacity activeOpacity={0.9}>
+                <Card className="h-64 w-full justify-between overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
+                  <CardContent className="h-full justify-between p-6">
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <Icon as={CreditCard} size={20} className="text-muted-foreground" />
+                        <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Ledger
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <CardTitle>Ledger</CardTitle>
-                      <CardDescription>Track payments and credits</CardDescription>
-                    </View>
-                  </CardHeader>
-                </Card>
-              </Button>
-            </Link>
-          </Animated.View>
-        </View>
 
-        <View className="gap-4">
-          <Animated.View
-            entering={Platform.OS !== 'web' ? createStaggeredAnimation(2, FadeInDown).withInitialValues({ opacity: 0 }) : undefined}
-          >
-            <Link href="/settings" asChild>
-              <Button variant="outline" className="h-auto p-0">
-                <Card className="w-full border-0 shadow-sm bg-card">
-                  <CardHeader className="flex-row items-center gap-4">
-                    <View className="p-3 bg-gray-100 rounded-full dark:bg-gray-800">
-                      <Icon as={Settings} size={24} className="text-gray-600 dark:text-gray-100" />
+                    <View>
+                      <Text
+                        className="-ml-1 text-6xl font-black tracking-tighter text-foreground"
+                        numberOfLines={1}
+                        adjustsFontSizeToFit>
+                        {currencySymbol}
+                        {formatBalance(totalLedgerBalance)}
+                      </Text>
                     </View>
-                    <View className="flex-1">
-                      <CardTitle>Settings</CardTitle>
-                      <CardDescription>Data management and preferences</CardDescription>
+
+                    <View className="flex-row items-center justify-between border-t border-gray-100 pt-4 dark:border-zinc-800">
+                      <Text className="text-lg font-semibold text-foreground">
+                        Track Organizations
+                      </Text>
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-black dark:bg-white">
+                        <Icon as={ArrowRight} size={20} className="text-white dark:text-black" />
+                      </View>
                     </View>
-                  </CardHeader>
+                  </CardContent>
                 </Card>
-              </Button>
+              </TouchableOpacity>
+            </Link>
+          </Animated.View>
+
+          {/* Settings Card */}
+          <Animated.View
+            entering={Platform.OS !== 'web' ? createStaggeredAnimation(2, FadeInDown) : undefined}>
+            <Link href="/settings" asChild>
+              <TouchableOpacity activeOpacity={0.9}>
+                <Card className="h-64 w-full justify-between overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
+                  <CardContent className="h-full justify-between p-6">
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <Icon as={Settings} size={20} className="text-muted-foreground" />
+                        <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          System
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="flex-row items-center gap-4">
+                      <Text className="text-5xl font-black tracking-tighter text-foreground">
+                        Settings
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between border-t border-gray-100 pt-4 dark:border-zinc-800">
+                      <Text className="text-lg font-semibold text-foreground">
+                        App Config & Data
+                      </Text>
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-800">
+                        <Icon as={ArrowRight} size={20} className="text-foreground" />
+                      </View>
+                    </View>
+                  </CardContent>
+                </Card>
+              </TouchableOpacity>
             </Link>
           </Animated.View>
         </View>
+        <View className="h-10" />
       </ScrollView>
     </>
   );
