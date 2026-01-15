@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import {
   FileDown,
   FileUp,
@@ -30,6 +30,7 @@ import {
   ChevronRight,
   Store,
   Trash2,
+  ArrowLeft,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
@@ -45,8 +46,7 @@ import { setCollections } from '@/lib/store/slices/inventorySlice';
 import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { exportData, importData } from '@/lib/utils/export-import';
 import { Icon } from '@/components/ui/icon';
-import { clearDatabase, seedDatabase } from '@/lib/seed';
-import { seedData } from '@/lib/seedData';
+import { getEmptyData, getSeedData } from '@/lib/seed';
 
 const CURRENCIES = [
   { value: '₹', label: 'Indian Rupee (INR)' },
@@ -57,9 +57,12 @@ const CURRENCIES = [
 ];
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { colorScheme, setColorScheme } = useColorScheme();
   const dispatch = useDispatch();
   const settings = useSelector((state: RootState) => state.settings);
+  const inventory = useSelector((state: RootState) => state.inventory);
+  const ledger = useSelector((state: RootState) => state.ledger);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
@@ -67,7 +70,12 @@ export default function SettingsScreen() {
 
   const handleExport = async () => {
     setIsExporting(true);
-    const success = await exportData();
+    const data = {
+      meta: settings,
+      collections: inventory.collections,
+      ledger: ledger.entries,
+    };
+    const success = await exportData(data);
     setIsExporting(false);
     if (success) {
       setSuccessMessage('Data exported successfully');
@@ -89,30 +97,28 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSeed = async () => {
-    const success = await seedDatabase();
-    if (success) {
-      dispatch(setCollections(seedData.collections));
-      dispatch(setLedger(seedData.ledger));
-      setSuccessMessage('Database seeded successfully');
-      setSuccessDialogOpen(true);
-    }
+  const handleSeed = () => {
+    const data = getSeedData();
+    dispatch(setSettings(data.meta));
+    dispatch(setCollections(data.collections));
+    dispatch(setLedger(data.ledger));
+    setSuccessMessage('Database seeded successfully');
+    setSuccessDialogOpen(true);
   };
 
-  const handleClear = async () => {
+  const handleClear = () => {
     Alert.alert('Clear Database', 'This will permanently delete all data. Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete All',
         style: 'destructive',
-        onPress: async () => {
-          const success = await clearDatabase();
-          if (success) {
-            dispatch(setCollections([]));
-            dispatch(setLedger([]));
-            setSuccessMessage('Database cleared');
-            setSuccessDialogOpen(true);
-          }
+        onPress: () => {
+          const data = getEmptyData();
+          dispatch(setSettings(data.meta));
+          dispatch(setCollections(data.collections));
+          dispatch(setLedger(data.ledger));
+          setSuccessMessage('Database cleared');
+          setSuccessDialogOpen(true);
         },
       },
     ]);
@@ -122,8 +128,15 @@ export default function SettingsScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-1 bg-background pt-12">
-        <View className="border-b border-border px-5 pb-6">
-          <Text className="text-4xl font-black tracking-tight text-foreground">Configuration</Text>
+        <View className="relative flex-row items-center justify-center border-b border-border bg-background px-5 py-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute left-5"
+            onPress={() => router.back()}>
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+          </Button>
+          <Text className="text-lg font-bold text-foreground">Configuration</Text>
         </View>
 
         <ScrollView contentContainerClassName="p-5 gap-8">

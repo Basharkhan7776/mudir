@@ -26,15 +26,7 @@ import {
 import { deleteItem } from '@/lib/store/slices/inventorySlice';
 import { RootState } from '@/lib/store';
 import { Link, Stack, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import {
-  Plus,
-  Trash2,
-  Settings,
-  Search,
-  ArrowLeft,
-  ChevronRight,
-  Pencil,
-} from 'lucide-react-native';
+import { Plus, Trash2, Settings, Search, ArrowLeft, ChevronRight } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
 import { View, Pressable, TouchableOpacity } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
@@ -253,25 +245,7 @@ export default function CatalogScreen() {
         {/* Action Buttons */}
         <Animated.View
           entering={FadeInDown.delay(500)}
-          className="pointer-events-box-none absolute bottom-8 left-0 right-0 flex-row justify-between px-6">
-          {/* Edit Button (Left) - Only when 1 item selected */}
-          {isSelectionMode && selectedIds.size === 1 ? (
-            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  const id = Array.from(selectedIds)[0];
-                  router.push(`/inventory/${catalogId}/item-form?itemId=${id}`);
-                  setSelectedIds(new Set());
-                }}
-                className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                <Icon as={Pencil} size={28} className="text-white dark:text-black" />
-              </TouchableOpacity>
-            </Animated.View>
-          ) : (
-            <View />
-          )}
-
+          className="pointer-events-box-none absolute bottom-8 left-0 right-0 flex-row justify-end px-6">
           {/* Right Action Button (Plus or Delete) */}
           {isSelectionMode ? (
             <Animated.View entering={FadeInDown} exiting={FadeOutUp}>

@@ -4,6 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { X } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
@@ -70,6 +78,54 @@ export default function ItemFormScreen() {
               onCheckedChange={(val) => setValues({ ...values, [field.key]: val })}
             />
           </View>
+        );
+      case 'select':
+        return (
+          <Select
+            value={{
+              value: values[field.key],
+              label: values[field.key] || 'Select...',
+            }}
+            onValueChange={(option) => {
+              if (option) {
+                setValues({ ...values, [field.key]: option.value });
+              }
+            }}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select option" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {field.options?.map((opt: string) => (
+                  <SelectItem key={opt} label={opt} value={opt} />
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        );
+      case 'currency':
+        return (
+          <View>
+            <Input
+              placeholder="0.00"
+              value={values[field.key]?.toString() || ''}
+              onChangeText={(text) => {
+                // Allow only numbers and decimal
+                const clean = text.replace(/[^0-9.]/g, '');
+                setValues({ ...values, [field.key]: clean });
+              }}
+              keyboardType="numeric"
+            />
+          </View>
+        );
+      case 'date':
+        // Simple text input for date for now
+        return (
+          <Input
+            placeholder="YYYY-MM-DD"
+            value={values[field.key] || ''}
+            onChangeText={(text) => setValues({ ...values, [field.key]: text })}
+          />
         );
       case 'number':
         return (

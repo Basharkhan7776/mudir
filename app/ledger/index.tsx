@@ -1,49 +1,46 @@
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { addOrganization, deleteOrganization } from '@/lib/store/slices/ledgerSlice';
 import { RootState } from '@/lib/store';
-import { Link, Stack } from 'expo-router';
-import { Plus, Search, Trash, Menu, ArrowRight, Edit } from 'lucide-react-native';
+import { Stack, useRouter, Link } from 'expo-router';
+import { Plus, Trash2, ChevronRight, Pencil, ArrowLeft } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
-import { View, Pressable, Alert, FlatList } from 'react-native';
+import { View, Pressable, TouchableOpacity } from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeOutUp,
+  FadeOutDown,
+  LinearTransition,
+} from 'react-native-reanimated';
+import { createStaggeredAnimation } from '@/lib/animations';
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useDispatch, useSelector } from 'react-redux';
-import { CollapsingHeaderFlatList } from '@/components/CollapsingHeaderFlatList'; // Kept for now if fallback needed, but unused in new code
 
 export default function LedgerScreen() {
+  const router = useRouter();
   const entries = useSelector((state: RootState) => state.ledger.entries);
-  const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
   const dispatch = useDispatch();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isSelectionMode = selectedIds.size > 0;
+
+  // New Organization State
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newType, setNewType] = useState<'ORG' | 'INDIVIDUAL'>('INDIVIDUAL');
   const [searchQuery, setSearchQuery] = useState('');
-  const insets = useSafeAreaInsets();
-  const contentInsets = {
-    top: insets.top,
-    bottom: insets.bottom,
-    left: 12,
-    right: 12,
-  };
 
   const handleAddParty = () => {
     if (newName.trim()) {
@@ -52,38 +49,43 @@ export default function LedgerScreen() {
           id: Date.now().toString(),
           name: newName.trim(),
           phone: newPhone,
-          // Type is not in Organization schema but was in Party.
-          // Assuming Organization schema is just { id, name, phone, email } for now based on types.ts
-          // If type is needed, we should add it to schema. For now, ignoring type or storing in name/meta if needed.
-          // But wait, the user request showed "organization" object.
         })
       );
       setNewName('');
       setNewPhone('');
-      setNewType('INDIVIDUAL');
       setIsAdding(false);
     }
   };
 
-  const handleDelete = (id: string, name: string) => {
-    Alert.alert(
-      'Delete Organization',
-      `Are you sure you want to delete "${name}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deleteOrganization(id)),
-        },
-      ]
-    );
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
   };
 
-  const getBalance = (transactions: any[]) => {
-    return transactions.reduce((acc, t) => {
-      return t.type === 'CREDIT' ? acc - t.amount : acc + t.amount;
-    }, 0);
+  const handleLongPress = (id: string) => {
+    if (!isSelectionMode) {
+      setSelectedIds(new Set([id]));
+    }
+  };
+
+  const handlePress = (id: string) => {
+    if (isSelectionMode) {
+      toggleSelection(id);
+    } else {
+      router.push(`/ledger/${id}`);
+    }
+  };
+
+  const handleBatchDelete = () => {
+    selectedIds.forEach((id) => {
+      dispatch(deleteOrganization(id));
+    });
+    setSelectedIds(new Set());
   };
 
   const filteredEntries = useMemo(() => {
@@ -98,153 +100,215 @@ export default function LedgerScreen() {
     );
   }, [entries, searchQuery]);
 
+  const listData = useMemo(() => {
+    const data: any[] = [{ id: 'TITLE_HEADER' }, { id: 'SEARCH_HEADER' }];
+    if (filteredEntries.length === 0) {
+      data.push({ id: 'EMPTY_STATE' });
+    } else {
+      data.push(...filteredEntries);
+    }
+    return data;
+  }, [filteredEntries]);
+
   return (
     <>
       <Stack.Screen
         options={{
-          headerTitle: () => (
-            <Text className="text-base font-black uppercase tracking-widest text-foreground">
-              ORGANIZATIONS
-            </Text>
-          ),
-          headerTitleAlign: 'center',
-          headerShadowVisible: false,
-          headerLeft: () => (
-            // Simulated Menu Icon - typically opens drawer, using simplistic replacement
-            <Pressable className="-ml-2 p-2">
-              <Icon as={Menu} size={24} className="text-foreground" />
-            </Pressable>
-          ),
-          headerRight: () => (
-            <Pressable onPress={() => {}} className="mr-0 p-2">
-              <Icon as={Search} size={24} className="text-foreground" />
-            </Pressable>
-          ),
-          headerStyle: {
-            backgroundColor: '#ffffff', // Ensure white background
-          },
+          headerShown: false,
         }}
       />
-      <View className="relative flex-1 bg-background">
-        {/* Search Input (Functional fallback since header search is visual) */}
-        <View className="border-b border-gray-100 bg-background px-4 py-2 dark:border-gray-800">
-          <Input
-            placeholder="Search organizations..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            className="h-10 rounded-lg border-0 bg-muted/30 px-3"
-          />
-        </View>
-
-        {isAdding && (
-          <View className="border-b border-border bg-muted/10 px-4 py-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">New Organization</CardTitle>
-              </CardHeader>
-              <CardContent className="gap-4">
-                <Input
-                  placeholder="Organization Name"
-                  value={newName}
-                  onChangeText={setNewName}
-                  className="bg-background"
-                />
-                <Input
-                  placeholder="Phone (Optional)"
-                  value={newPhone}
-                  onChangeText={setNewPhone}
-                  keyboardType="phone-pad"
-                  className="bg-background"
-                />
-              </CardContent>
-              <CardFooter className="justify-end gap-3 pt-0">
-                <Button variant="ghost" onPress={() => setIsAdding(false)}>
-                  <Text>Cancel</Text>
-                </Button>
-                <Button
-                  onPress={handleAddParty}
-                  className="bg-black text-white dark:bg-white dark:text-black">
-                  <Text className="font-bold text-white dark:text-black">Create</Text>
-                </Button>
-              </CardFooter>
-            </Card>
-          </View>
-        )}
-
-        <FlatList
-          data={filteredEntries}
-          keyExtractor={(item) => item.organization.id}
+      <View className="flex-1 bg-background pt-12">
+        <Animated.FlatList
+          data={listData}
+          keyExtractor={(item) =>
+            item.id === 'TITLE_HEADER' || item.id === 'SEARCH_HEADER' || item.id === 'EMPTY_STATE'
+              ? item.id
+              : item.organization.id
+          }
+          stickyHeaderIndices={[1]}
           contentContainerClassName="pb-24"
-          renderItem={({ item }) => {
-            // Mock Type since it's not in schema yet
-            const orgType = 'CLIENT'; // Default to CLIENT or SUPPLIER based on logic or random for now
+          renderItem={({ item, index }) => {
+            if (item.id === 'TITLE_HEADER') {
+              return (
+                <View className="flex-row items-center justify-between px-5 pb-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onPress={() => router.back()}
+                    className="-ml-3 mt-1">
+                    <Icon as={ArrowLeft} size={24} className="text-foreground" />
+                  </Button>
+                  <Text className="flex-1 text-center text-3xl font-bold text-foreground">
+                    Organizations
+                  </Text>
+                  <View className="w-10" />
+                </View>
+              );
+            }
+
+            if (item.id === 'SEARCH_HEADER') {
+              return (
+                <View className="bg-background px-5 pb-6 pt-2">
+                  <Input
+                    placeholder="Search organizations..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    className="h-12 rounded-full border-0 bg-secondary/50 px-6"
+                  />
+                  {isAdding && (
+                    <Animated.View
+                      entering={FadeInDown}
+                      className="mt-4 rounded-2xl border border-border bg-card p-4">
+                      <Text className="mb-4 text-lg font-bold">New Organization</Text>
+                      <View className="gap-4">
+                        <Input
+                          placeholder="Name"
+                          value={newName}
+                          onChangeText={setNewName}
+                          className="bg-background"
+                        />
+                        <Input
+                          placeholder="Phone"
+                          value={newPhone}
+                          onChangeText={setNewPhone}
+                          keyboardType="phone-pad"
+                          className="bg-background"
+                        />
+                        <View className="flex-row justify-end gap-2">
+                          <Button variant="ghost" onPress={() => setIsAdding(false)}>
+                            <Text>Cancel</Text>
+                          </Button>
+                          <Button onPress={handleAddParty}>
+                            <Text>Create</Text>
+                          </Button>
+                        </View>
+                      </View>
+                    </Animated.View>
+                  )}
+                </View>
+              );
+            }
+
+            if (item.id === 'EMPTY_STATE') {
+              return (
+                <View className="items-center justify-center p-8">
+                  <Text className="text-muted-foreground">No organizations found.</Text>
+                </View>
+              );
+            }
+
+            const isSelected = selectedIds.has(item.organization.id);
 
             return (
-              <Link href={`/ledger/${item.organization.id}`} asChild>
-                <Pressable className="flex-row items-center justify-between border-b border-gray-100 bg-background px-5 py-5 active:bg-gray-50 dark:border-gray-800 dark:active:bg-muted/10">
-                  <View className="flex-1 gap-1">
-                    <Text className="text-lg font-bold text-foreground">
-                      {item.organization.name}
-                    </Text>
-                    <Text className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      {item.organization.phone || 'NO CONTACT'}
-                    </Text>
-                  </View>
-
-                  {/* Actions (Visual) */}
-                  <View className="flex-row items-center gap-0">
-                    <View className="mr-4">
-                      {/* Arrow visual */}
-                      <Icon as={ArrowRight} size={20} className="text-foreground" />
-                    </View>
-
-                    {/* Action Buttons Container (Simulated Swipe Reveal) */}
-                    <View className="flex-row overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                      <Pressable
-                        className="h-10 w-10 items-center justify-center bg-black dark:bg-white"
-                        // onPress={() => edit logic}
-                      >
-                        <Icon as={Edit} size={14} className="text-white dark:text-black" />
-                      </Pressable>
-                      <Pressable
-                        className="h-10 w-10 items-center justify-center border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-black"
-                        onPress={(e) => {
-                          e.stopPropagation(); // Prevent navigation
-                          handleDelete(item.organization.id, item.organization.name);
-                        }}>
-                        <Icon as={Trash} size={14} className="text-destructive" />
-                      </Pressable>
-                    </View>
-                  </View>
-                </Pressable>
-              </Link>
+              <Animated.View
+                entering={createStaggeredAnimation(index - 2).withInitialValues({ opacity: 0 })}
+                exiting={FadeOutUp.duration(200)}
+                layout={LinearTransition.duration(300).damping(30)}
+                className="mb-4 px-5">
+                <Link href={`/ledger/${item.organization.id}`} asChild={!isSelectionMode}>
+                  <Pressable
+                    delayLongPress={200}
+                    onLongPress={() => handleLongPress(item.organization.id)}
+                    onPress={() => handlePress(item.organization.id)}
+                    disabled={isSelectionMode ? false : undefined}>
+                    <Card
+                      className={`w-full flex-row items-center rounded-2xl border-0 p-4 shadow-sm ${
+                        isSelected ? 'bg-secondary/30' : 'bg-card'
+                      }`}>
+                      <View className="mr-4 items-center justify-center">
+                        <View
+                          className={`h-2 w-2 rounded-full ${
+                            isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'
+                          }`}
+                        />
+                      </View>
+                      <View className="flex-1 gap-1">
+                        <Text className="text-lg font-bold text-foreground">
+                          {item.organization.name}
+                        </Text>
+                        <Text className="text-xs font-semibold uppercase text-muted-foreground/70">
+                          {item.organization.phone || 'NO CONTACT'}
+                        </Text>
+                      </View>
+                      {!isSelectionMode && (
+                        <Icon
+                          as={ChevronRight}
+                          size={20}
+                          className="text-gray-300 dark:text-gray-600"
+                        />
+                      )}
+                    </Card>
+                  </Pressable>
+                </Link>
+              </Animated.View>
             );
           }}
-          ListEmptyComponent={
-            <View className="items-center justify-center p-12 opacity-50">
-              <Text className="font-medium text-muted-foreground">No organizations found.</Text>
-            </View>
-          }
         />
 
-        {/* Floating Action Button */}
-        <View className="absolute bottom-16 right-6">
-          <Pressable
-            onPress={() => setIsAdding(true)}
-            className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-xl active:scale-95 dark:bg-white">
-            <Icon as={Plus} size={32} className="text-white dark:text-black" />
-          </Pressable>
-        </View>
+        {/* Action Buttons */}
+        <Animated.View
+          entering={FadeInDown.delay(500)}
+          className="pointer-events-box-none pointer-events-none absolute bottom-8 left-0 right-0 flex-row justify-between px-6">
+          {isSelectionMode ? (
+            <>
+              <View className="pointer-events-auto">
+                {selectedIds.size === 1 && (
+                  <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const id = Array.from(selectedIds)[0];
+                        router.push(`/ledger/${id}`);
+                        setSelectedIds(new Set());
+                      }}
+                      className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                      <Icon as={Pencil} size={24} className="text-white dark:text-black" />
+                    </TouchableOpacity>
+                  </Animated.View>
+                )}
+              </View>
 
-        {/* Bottom Status Bar */}
-        <View className="absolute bottom-0 left-0 right-0 h-10 flex-row items-center justify-between bg-black px-5 dark:border-t dark:border-gray-200 dark:bg-white">
-          <Text className="text-[10px] font-bold uppercase tracking-widest text-white dark:text-black">
-            STATUS: ONLINE
-          </Text>
-          <Text className="text-[10px] font-bold uppercase tracking-widest text-white dark:text-black">
-            {filteredEntries.length} ORGS
-          </Text>
-        </View>
+              <View className="pointer-events-auto">
+                <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        className="h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-black shadow-lg dark:border-gray-700 dark:bg-white">
+                        <Icon as={Trash2} size={28} className="text-white dark:text-black" />
+                      </TouchableOpacity>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Organizations</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {selectedIds.size} organization(s)?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          <Text>Cancel</Text>
+                        </AlertDialogCancel>
+                        <AlertDialogAction onPress={handleBatchDelete}>
+                          <Text>Delete</Text>
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </Animated.View>
+              </View>
+            </>
+          ) : (
+            <View className="pointer-events-auto flex-1 items-end">
+              <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+                <Pressable
+                  onPress={() => setIsAdding(true)}
+                  className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                  <Icon as={Plus} size={32} className="text-white dark:text-black" />
+                </Pressable>
+              </Animated.View>
+            </View>
+          )}
+        </Animated.View>
       </View>
     </>
   );

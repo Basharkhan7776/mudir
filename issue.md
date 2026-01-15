@@ -1,0 +1,1 @@
+In frameworks like React Native, developers often use components such as KeyboardAvoidingView to achieve this effect across both platforms [3]. Flutter uses a similar mechanism where widgets like SingleChildScrollView or ListView automatically resize or scroll the content when a keyboard appears, a behavior often referred to as managing the view inset. 

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   addTransaction,
+  deleteTransactions,
   updateOrganization,
   deleteOrganization,
 } from '@/lib/store/slices/ledgerSlice';
@@ -74,8 +75,44 @@ export default function PartyScreen() {
   const [successMessage, setSuccessMessage] = useState('');
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
+  // Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isSelectionMode = selectedIds.size > 0;
+
   // Scroll ref
   const flatListRef = useRef<FlatList>(null);
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleLongPressTx = (id: string) => {
+    if (!isSelectionMode) {
+      setSelectedIds(new Set([id]));
+    }
+  };
+
+  const handlePressTx = (id: string) => {
+    if (isSelectionMode) {
+      toggleSelection(id);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    dispatch(
+      deleteTransactions({
+        organizationId: partyId,
+        transactionIds: Array.from(selectedIds),
+      })
+    );
+    setSelectedIds(new Set());
+  };
 
   if (!entry) return null;
 
@@ -228,11 +265,15 @@ export default function PartyScreen() {
                 <Icon as={Edit} size={16} className="mr-2 text-foreground" />
                 <Text>Edit Name</Text>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onPress={() => setDeleteOrgOpen(true)}>
-                <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
-                <Text className="text-destructive">Delete Party</Text>
-              </DropdownMenuItem>
+              {isSelectionMode && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onPress={handleDeleteSelected}>
+                    <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
+                    <Text className="text-destructive">Delete Selected ({selectedIds.size})</Text>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </View>
@@ -276,29 +317,56 @@ export default function PartyScreen() {
               // DEBIT (You Took) -> Liability -> Left Side (Gray Bubble)
 
               const isCredit = item.type === 'CREDIT';
+              const isSelected = selectedIds.has(item.id);
 
               return (
                 <Animated.View
                   entering={FadeInUp.duration(300)}
                   className={`mb-3 flex-row ${isCredit ? 'justify-end' : 'justify-start'}`}>
-                  <View
+                  <Pressable
+                    onLongPress={() => handleLongPressTx(item.id)}
+                    onPress={() => handlePressTx(item.id)}
+                    delayLongPress={200}
                     className={`max-w-[80%] px-5 py-3 shadow-sm ${
-                      isCredit
-                        ? 'rounded-[28px] rounded-tr-none bg-black'
-                        : 'rounded-[28px] rounded-tl-none bg-gray-100'
+                      isSelected
+                        ? 'border-2 border-blue-500 bg-blue-100 dark:bg-blue-900' // Selection Style
+                        : isCredit
+                          ? 'rounded-[28px] rounded-tr-none bg-black'
+                          : 'rounded-[28px] rounded-tl-none bg-gray-100'
+                    } ${
+                      // Keep shape even when selected? Or just color.
+                      // Let's keep shape logic for aesthetics but override color.
+                      // Actually, simpler to just override the bg class if selected.
+                      isSelected
+                        ? isCredit
+                          ? 'rounded-[28px] rounded-tr-none'
+                          : 'rounded-[28px] rounded-tl-none'
+                        : ''
                     }`}>
                     {item.remark ? (
                       <Text
-                        className={`mb-0.5 text-[10px] font-bold uppercase tracking-wider opacity-60 ${isCredit ? 'text-white' : 'text-black'}`}>
+                        className={`mb-0.5 text-[10px] font-bold uppercase tracking-wider opacity-60 ${
+                          isSelected
+                            ? 'text-blue-800 dark:text-blue-100'
+                            : isCredit
+                              ? 'text-white'
+                              : 'text-black'
+                        }`}>
                         {item.remark}
                       </Text>
                     ) : null}
                     <Text
-                      className={`text-2xl font-black ${isCredit ? 'text-white' : 'text-black'}`}>
+                      className={`text-2xl font-black ${
+                        isSelected
+                          ? 'text-blue-900 dark:text-white'
+                          : isCredit
+                            ? 'text-white'
+                            : 'text-black'
+                      }`}>
                       {isCredit ? '+' : '-'} {currencySymbol}
                       {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </Text>
-                  </View>
+                  </Pressable>
                 </Animated.View>
               );
             }}

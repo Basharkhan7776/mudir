@@ -17,18 +17,7 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
-import {
-  Trash2,
-  Edit,
-  X,
-  Check,
-  Calendar,
-  DollarSign,
-  Hash,
-  Type,
-  List,
-} from 'lucide-react-native';
-import { DynamicFieldRenderer } from '@/components/inventory/DynamicFieldRenderer';
+import { Edit, X, Pencil, ArrowLeft } from 'lucide-react-native';
 
 export default function ItemDetailScreen() {
   const { catalogId, itemId } = useLocalSearchParams<{ catalogId: string; itemId: string }>();
@@ -51,13 +40,9 @@ export default function ItemDetailScreen() {
     }
   }, [itemStore]);
 
-  const [isEditing, setIsEditing] = useState(false);
-  // Use cached item safe operators
-  const [editedValues, setEditedValues] = useState<Record<string, any>>(item?.values || {});
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  // Remove inline editing state
+  // const [isEditing, setIsEditing] = useState(false);
+  // const [editedValues, setEditedValues] = useState<Record<string, any>>(item?.values || {});
 
   const navigation = useNavigation();
 
@@ -71,58 +56,6 @@ export default function ItemDetailScreen() {
       </>
     );
   }
-
-  const handleDelete = () => {
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    setDeleteDialogOpen(false);
-    if (navigation.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(`/inventory/${catalogId}`);
-    }
-
-    // Dispatch after navigation (increased timeout)
-    setTimeout(() => {
-      dispatch(deleteItem({ collectionId: catalogId, itemId }));
-    }, 1000);
-  };
-
-  const handleSave = () => {
-    // Validate required fields
-    const isValid = collection.schema.every((field) => {
-      if (field.required && !editedValues[field.key]) return false;
-      return true;
-    });
-
-    if (!isValid) {
-      setErrorMessage('Please fill all required fields');
-      setErrorDialogOpen(true);
-      return;
-    }
-
-    dispatch(
-      updateItem({
-        collectionId: catalogId,
-        itemId,
-        updates: editedValues,
-      })
-    );
-
-    setIsEditing(false);
-    setSuccessDialogOpen(true);
-  };
-
-  const handleCancel = () => {
-    setEditedValues(item?.values || {});
-    setIsEditing(false);
-  };
-
-  const updateValue = (key: string, value: any) => {
-    setEditedValues((prev) => ({ ...prev, [key]: value }));
-  };
 
   const formatValue = (value: any, fieldType: string) => {
     if (value === null || value === undefined) return 'N/A';
@@ -143,28 +76,30 @@ export default function ItemDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          headerTitle: () => (
-            <Text className="text-sm font-bold uppercase tracking-widest text-foreground">
-              ITEM DETAILS
-            </Text>
-          ),
-          headerTitleAlign: 'center',
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="-ml-2 p-2">
-              <Icon as={X} size={24} className="text-foreground" />
-            </Pressable>
-          ),
-          headerRight: () => null, // Remove Edit button from header
+          headerShown: false,
         }}
       />
-      <View className="flex-1 bg-background">
-        <ScrollView className="flex-1" contentContainerClassName="p-6 pb-24">
+      <View className="flex-1 bg-background pt-12">
+        {/* Custom Header */}
+        <View className="flex-row items-center justify-between px-5 pb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onPress={() => router.back()}
+            className="-ml-3 h-10 w-10 rounded-full">
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+          </Button>
+          <Text className="text-lg font-bold uppercase tracking-widest text-foreground">
+            Item Details
+          </Text>
+          <View className="w-10" />
+        </View>
+
+        <ScrollView className="flex-1" contentContainerClassName="p-6 pt-0 pb-32">
           {/* Header Title Section */}
           <View className="mb-6">
             <Text className="mb-1 text-3xl font-black text-foreground">
-              {(isEditing ? editedValues : item.values)[collection.schema[0]?.key] ||
-                'Untitled Item'}
+              {item.values[collection.schema[0]?.key] || 'Untitled Item'}
             </Text>
             <Text className="text-sm font-medium text-muted-foreground">
               Added:{' '}
@@ -182,130 +117,38 @@ export default function ItemDetailScreen() {
 
           {/* Content Area */}
           <View className="gap-6">
-            {isEditing
-              ? // Edit Form
-                collection.schema.map((field) => (
-                  <DynamicFieldRenderer
-                    key={field.key}
-                    field={field}
-                    value={editedValues[field.key] ?? field.defaultValue}
-                    onChange={(value) => updateValue(field.key, value)}
-                  />
-                ))
-              : // Clean Details List
-                collection.schema.map((field) => {
-                  // Skip the main title field (assumed first) in the details list if desired,
-                  // but typically inventory details show all fields.
+            {collection.schema.map((field) => {
+              // Skip the main title field (assumed first) in the details list if desired,
+              // but typically inventory details show all fields.
 
-                  let displayValue = formatValue(item.values[field.key], field.type);
+              let displayValue = formatValue(item.values[field.key], field.type);
 
-                  // Simplified styling for specific types
-                  const isCurrency = field.type === 'currency';
+              // Simplified styling for specific types
+              const isCurrency = field.type === 'currency';
 
-                  return (
-                    <View
-                      key={field.key}
-                      className="flex-row items-center justify-between border-b border-gray-100 py-2 dark:border-gray-800">
-                      <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        {field.label}
-                      </Text>
-                      <Text
-                        className={`text-base font-semibold ${isCurrency ? 'font-bold' : 'text-foreground'}`}>
-                        {displayValue}
-                      </Text>
-                    </View>
-                  );
-                })}
+              return (
+                <View key={field.key} className="flex-row items-center justify-between py-4">
+                  <Text className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                    {field.label}
+                  </Text>
+                  <Text
+                    className={`text-right text-base font-semibold ${isCurrency ? 'font-bold' : 'text-foreground'}`}>
+                    {displayValue}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </ScrollView>
 
-        {/* Fixed Footer Actions */}
-        <View className="safe-bottom absolute bottom-0 left-0 right-0 border-t border-gray-100 bg-background p-4 dark:border-gray-800">
-          {isEditing ? (
-            <View className="flex-row gap-4">
-              <Button variant="outline" className="h-12 flex-1 rounded-xl" onPress={handleCancel}>
-                <Text>Cancel</Text>
-              </Button>
-              <Button
-                className="h-12 flex-1 rounded-xl bg-black dark:bg-white"
-                onPress={handleSave}>
-                <Text className="font-bold text-white dark:text-black">Save Changes</Text>
-              </Button>
-            </View>
-          ) : (
-            <View className="flex-row gap-4">
-              <Button
-                variant="outline"
-                className="h-12 flex-1 rounded-xl border-gray-200 dark:border-gray-700"
-                onPress={handleDelete}>
-                <Icon as={Trash2} size={18} className="mr-2 text-foreground" />
-                <Text className="font-bold text-foreground">Delete</Text>
-              </Button>
-              <Button
-                className="h-12 flex-[1.5] rounded-xl bg-black dark:bg-white"
-                onPress={() => setIsEditing(true)}>
-                <Icon as={Edit} size={18} className="mr-2 text-white dark:text-black" />
-                <Text className="font-bold text-white dark:text-black">Edit Item</Text>
-              </Button>
-            </View>
-          )}
+        {/* Fixed Edit FAB */}
+        <View className="absolute bottom-10 right-6">
+          <Pressable
+            onPress={() => router.push(`/inventory/${catalogId}/item-form?itemId=${itemId}`)}
+            className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-xl dark:bg-white">
+            <Icon as={Pencil} size={28} className="text-white dark:text-black" />
+          </Pressable>
         </View>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Item</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete this item? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">
-                  <Text>Cancel</Text>
-                </Button>
-              </DialogClose>
-              <Button variant="destructive" onPress={confirmDelete}>
-                <Text className="text-destructive-foreground">Delete</Text>
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Error Dialog */}
-        <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Error</DialogTitle>
-              <DialogDescription>{errorMessage}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button>
-                  <Text>OK</Text>
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Success Dialog */}
-        <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Success</DialogTitle>
-              <DialogDescription>Item updated successfully</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button>
-                  <Text>OK</Text>
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </View>
     </>
   );

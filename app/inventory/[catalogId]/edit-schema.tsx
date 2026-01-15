@@ -5,7 +5,16 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Plus, X, Trash2 } from 'lucide-react-native';
+import {
+  Plus,
+  X,
+  Trash2,
+  Type,
+  Hash,
+  ToggleLeft,
+  Image as ImageIcon,
+  ChevronRight,
+} from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -22,7 +31,8 @@ import {
 } from '@/components/ui/select';
 import { SchemaField } from '@/lib/types';
 
-type FieldType = 'text' | 'number' | 'boolean' | 'date' | 'image' | 'currency';
+// Use FieldType from types or local
+type FieldType = 'text' | 'number' | 'select' | 'currency' | 'date' | 'boolean' | 'image';
 
 export default function EditSchemaScreen() {
   const router = useRouter();
@@ -169,11 +179,13 @@ export default function EditSchemaScreen() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                <SelectItem label="TEXT" value="text" />
-                                <SelectItem label="NUMBER" value="number" />
-                                <SelectItem label="BOOLEAN" value="boolean" />
-                                <SelectItem label="IMAGE" value="image" />
-                                <SelectItem label="DATE" value="date" />
+                                <SelectItem label="Text" value="text" />
+                                <SelectItem label="Number" value="number" />
+                                <SelectItem label="Currency" value="currency" />
+                                <SelectItem label="Date" value="date" />
+                                <SelectItem label="Dropdown" value="select" />
+                                <SelectItem label="Yes/No" value="boolean" />
+                                <SelectItem label="Image" value="image" />
                               </SelectGroup>
                             </SelectContent>
                           </Select>
@@ -198,6 +210,53 @@ export default function EditSchemaScreen() {
                           onCheckedChange={(val) => updateField(index, { required: val })}
                         />
                       </View>
+
+                      {/* Dropdown Options Editor */}
+                      {field.type === 'select' && (
+                        <View className="mt-2 border-t border-border pt-3">
+                          <Text className="mb-2 text-sm font-medium text-muted-foreground">
+                            Options
+                          </Text>
+                          <View className="gap-2">
+                            {field.options?.map((option, optIndex) => (
+                              <View key={optIndex} className="flex-row items-center gap-2">
+                                <Text className="flex-1 rounded-md border border-border px-3 py-2 text-foreground">
+                                  {option}
+                                </Text>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onPress={() => {
+                                    const newOptions = [...(field.options || [])];
+                                    newOptions.splice(optIndex, 1);
+                                    updateField(index, { options: newOptions });
+                                  }}>
+                                  <Icon as={Trash2} size={16} className="text-destructive" />
+                                </Button>
+                              </View>
+                            ))}
+                            <View className="flex-row items-center gap-2">
+                              <Input
+                                placeholder="Add option"
+                                className="h-10 flex-1"
+                                onSubmitEditing={(e) => {
+                                  const val = e.nativeEvent.text.trim();
+                                  if (val) {
+                                    updateField(index, {
+                                      options: [...(field.options || []), val],
+                                    });
+                                    (e.currentTarget as any).clear();
+                                  }
+                                }}
+                              />
+                            </View>
+                            <Text className="text-xs text-muted-foreground">
+                              Press Enter/Return to add an option
+                            </Text>
+                          </View>
+                        </View>
+                      )}
                     </CardContent>
                   </Card>
                 </Animated.View>

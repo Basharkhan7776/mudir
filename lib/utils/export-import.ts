@@ -6,15 +6,8 @@ import { Alert } from 'react-native';
 
 const DB_FILE = FileSystem.documentDirectory + 'mudir_db.json';
 
-export async function exportData(): Promise<boolean> {
+export async function exportData(data: DatabaseSchema): Promise<boolean> {
   try {
-    // Check if file exists
-    const fileInfo = await FileSystem.getInfoAsync(DB_FILE);
-    if (!fileInfo.exists) {
-      Alert.alert('Error', 'No data to export');
-      return false;
-    }
-
     // Check if sharing is available
     const isAvailable = await Sharing.isAvailableAsync();
     if (!isAvailable) {
@@ -27,11 +20,8 @@ export async function exportData(): Promise<boolean> {
     const exportFileName = `mudir_backup_${timestamp}.json`;
     const exportPath = FileSystem.documentDirectory + exportFileName;
 
-    // Copy the database file to a new file with timestamp
-    await FileSystem.copyAsync({
-      from: DB_FILE,
-      to: exportPath,
-    });
+    // Write data to file
+    await FileSystem.writeAsStringAsync(exportPath, JSON.stringify(data, null, 2));
 
     // Share the file
     await Sharing.shareAsync(exportPath, {
