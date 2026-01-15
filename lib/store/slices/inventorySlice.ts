@@ -46,8 +46,14 @@ const inventorySlice = createSlice({
         deleteCollection: (state, action: PayloadAction<string>) => {
             state.collections = state.collections.filter((c) => c.id !== action.payload);
         },
+        updateCollection: (state, action: PayloadAction<Collection>) => {
+            const index = state.collections.findIndex((c) => c.id === action.payload.id);
+            if (index !== -1) {
+                state.collections[index] = action.payload;
+            }
+        },
     },
 });
 
-export const { setCollections, addCollection, addItem, updateItem, deleteItem, deleteCollection } = inventorySlice.actions;
+export const { setCollections, addCollection, addItem, updateItem, deleteItem, deleteCollection, updateCollection } = inventorySlice.actions;
 export default inventorySlice.reducer;

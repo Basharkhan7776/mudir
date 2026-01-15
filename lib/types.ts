@@ -12,6 +12,7 @@ export type SchemaField = {
 export type CollectionItem = {
   id: string;
   createdAt: string; // ISO string
+  updatedAt?: string; // ISO string
   values: Record<string, any>;
 };
 

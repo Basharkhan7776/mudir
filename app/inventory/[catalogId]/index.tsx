@@ -21,15 +21,26 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { addItem, deleteItem, deleteCollection } from '@/lib/store/slices/inventorySlice';
+import { deleteItem } from '@/lib/store/slices/inventorySlice';
 import { RootState } from '@/lib/store';
 import { Link, Stack, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { Plus, Trash2, Settings, Search, ArrowLeft, ChevronRight } from 'lucide-react-native';
+import {
+  Plus,
+  Trash2,
+  Settings,
+  Search,
+  ArrowLeft,
+  ChevronRight,
+  Pencil,
+} from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
-import { FlatList, View, Pressable, ScrollView, Platform, InteractionManager } from 'react-native';
+import { View, Pressable, TouchableOpacity } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
+import { createStaggeredAnimation } from '@/lib/animations';
 import { useDispatch, useSelector } from 'react-redux';
-import { DynamicFieldRenderer } from '@/components/inventory/DynamicFieldRenderer';
+// Removed DynamicFieldRenderer import
 
 export default function CatalogScreen() {
   const { catalogId } = useLocalSearchParams<{ catalogId: string }>();
@@ -46,15 +57,14 @@ export default function CatalogScreen() {
     }
   }, [collectionStore]);
 
-  const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
   const dispatch = useDispatch();
 
-  const [isAdding, setIsAdding] = useState(false);
-  const [newValues, setNewValues] = useState<Record<string, any>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [deleteCollectionOpen, setDeleteCollectionOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const isSelectionMode = selectedIds.size > 0;
 
   const navigation = useNavigation();
 
@@ -68,49 +78,6 @@ export default function CatalogScreen() {
       </>
     );
   }
-
-  const handleDeleteCollection = () => {
-    if (navigation.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/inventory');
-    }
-
-    // Dispatch after navigation transition (increased timeout)
-    setTimeout(() => {
-      dispatch(deleteCollection(catalogId));
-    }, 1000);
-  };
-
-  const handleAddItem = () => {
-    // Basic validation: check required fields
-    const isValid = collection.schema.every((field) => {
-      if (field.required && !newValues[field.key]) return false;
-      return true;
-    });
-
-    if (isValid) {
-      dispatch(
-        addItem({
-          collectionId: catalogId,
-          item: {
-            id: Date.now().toString(),
-            createdAt: new Date().toISOString(),
-            values: { ...newValues },
-          },
-        })
-      );
-      setNewValues({});
-      setIsAdding(false);
-    } else {
-      setErrorMessage('Please fill all required fields');
-      setErrorDialogOpen(true);
-    }
-  };
-
-  const updateValue = (key: string, value: string) => {
-    setNewValues((prev) => ({ ...prev, [key]: value }));
-  };
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return collection.data;
@@ -129,131 +96,224 @@ export default function CatalogScreen() {
     });
   }, [collection.data, collection.schema, searchQuery]);
 
+  const listData = useMemo(() => {
+    const data: any[] = [{ id: 'TITLE_HEADER' }, { id: 'SEARCH_HEADER' }];
+    if (filteredItems.length === 0) {
+      data.push({ id: 'EMPTY_STATE' });
+    } else {
+      data.push(...filteredItems);
+    }
+    return data;
+  }, [filteredItems]);
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleLongPress = (id: string) => {
+    if (!isSelectionMode) {
+      setSelectedIds(new Set([id]));
+    }
+  };
+
+  const handlePress = (id: string) => {
+    if (isSelectionMode) {
+      toggleSelection(id);
+    } else {
+      router.push(`/inventory/${catalogId}/${id}`);
+    }
+  };
+
+  const handleBatchDelete = () => {
+    selectedIds.forEach((id) => {
+      dispatch(deleteItem({ collectionId: catalogId, itemId: id }));
+    });
+    setSelectedIds(new Set());
+  };
+
   return (
     <>
       <Stack.Screen
         options={{
-          headerTitle: () => <Text className="text-lg font-bold">{collection.name}</Text>,
-          headerTitleAlign: 'center',
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} className="-ml-2 p-2">
-              <Icon as={ArrowLeft} size={24} className="text-foreground" />
-            </Pressable>
-          ),
-          headerRight: () => (
-            <Pressable onPress={() => setIsAdding(!isAdding)} className="mr-0 p-2">
-              <Icon as={Plus} size={24} className="text-foreground" />
-            </Pressable>
-          ),
+          headerShown: false,
         }}
       />
-      <View className="flex-1 bg-background">
-        {/* Search & Stats Section */}
-        <View className="px-4 pb-2">
-          <View className="mb-2 flex-row items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 dark:bg-muted">
-            <Icon as={Search} size={18} className="text-muted-foreground" />
-            <Input
-              placeholder="Search model or SKU"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              className="flex-1 border-0 bg-transparent p-0 text-base"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-          <View className="mb-2 flex-row items-center justify-between px-1">
-            <Text className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              {filteredItems.length} ITEMS
-            </Text>
-            <View className="flex-row items-center gap-1">
-              <Text className="text-[10px] font-medium text-muted-foreground">Synced 2m ago</Text>
-            </View>
-          </View>
-        </View>
-
-        {isAdding && (
-          <Card>
-            <CardHeader>
-              <CardTitle>New Item</CardTitle>
-            </CardHeader>
-            <CardContent className="gap-4">
-              {collection.schema.map((field) => (
-                <DynamicFieldRenderer
-                  key={field.key}
-                  field={field}
-                  value={newValues[field.key] ?? field.defaultValue}
-                  onChange={(value) => updateValue(field.key, value)}
-                />
-              ))}
-            </CardContent>
-            <CardFooter className="justify-end gap-2">
-              <Button variant="outline" onPress={() => setIsAdding(false)}>
-                <Text>Cancel</Text>
-              </Button>
-              <Button onPress={handleAddItem}>
-                <Text>Add</Text>
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-
-        <FlatList
-          data={filteredItems}
+      <View className="flex-1 bg-background pt-12">
+        <Animated.FlatList
+          data={listData}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="gap-4"
+          stickyHeaderIndices={[1]}
+          contentContainerClassName="pb-24"
           renderItem={({ item, index }) => {
-            // Assumption: 0=Name, 1=SKU, 2=Qty/Stock
+            if (item.id === 'TITLE_HEADER') {
+              return (
+                <View className="flex-row items-center justify-between px-5 pb-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onPress={() => {
+                      if (isSelectionMode) {
+                        setSelectedIds(new Set());
+                      } else {
+                        router.back();
+                      }
+                    }}
+                    className="-ml-3 mt-1">
+                    <Icon as={ArrowLeft} size={24} className="text-foreground" />
+                  </Button>
+                  <Text className="flex-1 text-center text-3xl font-bold text-foreground">
+                    {collection.name}
+                  </Text>
+                  <View className="w-10" />
+                </View>
+              );
+            }
+
+            if (item.id === 'SEARCH_HEADER') {
+              return (
+                <View className="bg-background px-5 pb-6 pt-2">
+                  <Input
+                    placeholder="Search model or SKU"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    className="h-12 rounded-full border-0 bg-secondary/50 px-6"
+                  />
+                </View>
+              );
+            }
+
+            if (item.id === 'EMPTY_STATE') {
+              return (
+                <View className="items-center justify-center p-8">
+                  <Text className="text-muted-foreground">No items in this collection.</Text>
+                </View>
+              );
+            }
+
+            // Assumption: 0=Name, 1=SKU
             const fields = collection.schema;
             const mainField = fields[0]; // e.g. Name
             const subField = fields[1]; // e.g. SKU
-            const statField =
-              fields.find(
-                (f) => f.type === 'number' || f.key.includes('qty') || f.key.includes('stock')
-              ) || fields[2];
 
             const mainValue = item.values[mainField?.key] || 'Untitled';
             const subValue = subField ? item.values[subField.key] : '';
-            const statValue = statField ? item.values[statField.key] : null;
+
+            const isSelected = selectedIds.has(item.id);
 
             return (
-              <Link href={`/inventory/${catalogId}/${item.id}`} asChild>
-                <Pressable className="flex-row items-center justify-between border-b border-gray-100 bg-background px-4 py-4 active:bg-gray-50 dark:border-border dark:active:bg-muted/10">
-                  <View className="flex-1 gap-1">
-                    <Text className="text-base font-bold text-foreground">{mainValue}</Text>
-                    {subValue ? (
-                      <Text className="text-xs font-semibold uppercase text-muted-foreground/70">
-                        {subField?.label}: {subValue}
-                      </Text>
-                    ) : null}
-                  </View>
-
-                  <View className="flex-row items-center gap-4">
-                    {/* Status/Stat Block */}
-                    <View className="items-end">
-                      {statValue !== null && (
-                        <Text className="text-xl font-bold text-foreground">{statValue}</Text>
-                      )}
-                      <View
-                        className={`rounded px-1.5 py-0.5 ${Number(statValue) === 0 ? 'bg-muted' : 'bg-green-100 dark:bg-green-900'}`}>
-                        <Text
-                          className={`text-[9px] font-bold uppercase ${Number(statValue) === 0 ? 'text-muted-foreground' : 'text-green-700 dark:text-green-300'}`}>
-                          {Number(statValue) === 0 ? 'EMPTY' : 'IN STOCK'}
-                        </Text>
+              <Animated.View
+                entering={createStaggeredAnimation(index - 2).withInitialValues({ opacity: 0 })}
+                exiting={FadeOutUp.duration(200)}
+                layout={LinearTransition.duration(300).damping(30)}
+                className="mb-4 px-5">
+                <Link href={`/inventory/${catalogId}/${item.id}`} asChild={!isSelectionMode}>
+                  <Pressable
+                    delayLongPress={200}
+                    onLongPress={() => handleLongPress(item.id)}
+                    onPress={() => handlePress(item.id)}
+                    disabled={isSelectionMode ? false : undefined}>
+                    <Card
+                      className={`w-full flex-row items-center rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
+                      <View className="mr-4 items-center justify-center">
+                        <View
+                          className={`h-2 w-2 rounded-full ${isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'}`}
+                        />
                       </View>
-                    </View>
-
-                    <Icon as={ChevronRight} size={16} className="text-gray-300" />
-                  </View>
-                </Pressable>
-              </Link>
+                      <View className="flex-1 gap-1">
+                        <Text className="text-lg font-bold text-foreground">{mainValue}</Text>
+                        {subValue ? (
+                          <Text className="text-xs font-semibold uppercase text-muted-foreground/70">
+                            {subField?.label}: {subValue}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {!isSelectionMode && (
+                        <Icon
+                          as={ChevronRight}
+                          size={20}
+                          className="text-gray-300 dark:text-gray-600"
+                        />
+                      )}
+                    </Card>
+                  </Pressable>
+                </Link>
+              </Animated.View>
             );
           }}
-          ListEmptyComponent={
-            <View className="items-center justify-center p-8">
-              <Text className="text-muted-foreground">No items in this collection.</Text>
-            </View>
-          }
         />
+
+        {/* Floating Action Button */}
+
+        {/* Action Buttons */}
+        <Animated.View
+          entering={FadeInDown.delay(500)}
+          className="pointer-events-box-none absolute bottom-8 left-0 right-0 flex-row justify-between px-6">
+          {/* Edit Button (Left) - Only when 1 item selected */}
+          {isSelectionMode && selectedIds.size === 1 ? (
+            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  const id = Array.from(selectedIds)[0];
+                  router.push(`/inventory/${catalogId}/item-form?itemId=${id}`);
+                  setSelectedIds(new Set());
+                }}
+                className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Pencil} size={28} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <View />
+          )}
+
+          {/* Right Action Button (Plus or Delete) */}
+          {isSelectionMode ? (
+            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                    <Icon as={Trash2} size={28} className="text-white dark:text-black" />
+                  </TouchableOpacity>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Items</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete {selectedIds.size} item
+                      {selectedIds.size > 1 ? 's' : ''}?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      <Text>Cancel</Text>
+                    </AlertDialogCancel>
+                    <AlertDialogAction onPress={handleBatchDelete}>
+                      <Text>Delete</Text>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
+              <Pressable
+                onPress={() => {
+                  router.push(`/inventory/${catalogId}/item-form`);
+                }}
+                className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Plus} size={32} className="text-white dark:text-black" />
+              </Pressable>
+            </Animated.View>
+          )}
+        </Animated.View>
 
         {/* Error Dialog */}
         <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
@@ -271,27 +331,6 @@ export default function CatalogScreen() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        {/* Delete Collection Alert Dialog */}
-        <AlertDialog open={deleteCollectionOpen} onOpenChange={setDeleteCollectionOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Collection</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete "{collection.name}"? This will permanently delete
-                all items in this collection. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>
-                <Text>Cancel</Text>
-              </AlertDialogCancel>
-              <AlertDialogAction onPress={handleDeleteCollection} className="bg-destructive">
-                <Text className="text-destructive-foreground">Delete</Text>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </View>
     </>
   );

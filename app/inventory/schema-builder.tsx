@@ -3,17 +3,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { Switch } from '@/components/ui/switch';
 import { Stack, useRouter } from 'expo-router';
 import { Plus, X, Type, Hash, ToggleLeft, Image as ImageIcon, Trash2 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import {
-  ScrollView,
-  View,
-  TouchableOpacity,
-  Switch,
-  Platform,
-  KeyboardAvoidingView,
-} from 'react-native';
+import { ScrollView, View, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { addCollection } from '@/lib/store/slices/inventorySlice';
 import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
@@ -132,14 +126,14 @@ export default function SchemaBuilderScreen() {
             </Text>
             <View className="rounded-2xl border border-border bg-card p-4 shadow-sm">
               <Input
-                className="h-auto border-0 p-0 text-4xl font-black text-foreground placeholder:text-muted-foreground/50"
+                className="h-auto border-0 text-4xl font-black text-foreground placeholder:text-muted-foreground/50"
                 placeholder="Sneakers"
                 value={name}
                 onChangeText={setName}
                 autoFocus
               />
               <Input
-                className="mt-2 h-auto border-0 p-0 text-base text-muted-foreground"
+                className="mt-2 h-auto border-0 text-base text-muted-foreground"
                 placeholder="Add a description..."
                 value={description}
                 onChangeText={setDescription}
@@ -167,46 +161,56 @@ export default function SchemaBuilderScreen() {
                   layout={Layout.springify()}
                   entering={FadeInDown}>
                   <Card className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                    <CardContent className="flex-row items-center gap-3 p-4">
-                      <View className="flex-1 gap-2">
-                        <Input
-                          value={field.label}
-                          onChangeText={(text) => updateField(index, { label: text })}
-                          className="h-auto border-0 bg-transparent p-0 text-lg font-bold"
-                          placeholder="Attribute Name"
-                        />
+                    <CardContent className="gap-3 p-4">
+                      <View className="flex-row items-center gap-3">
+                        <View className="flex-1 gap-2">
+                          <Input
+                            value={field.label}
+                            onChangeText={(text) => updateField(index, { label: text })}
+                            className="h-auto border-0 bg-transparent p-0 text-lg font-bold"
+                            placeholder="Attribute Name"
+                          />
+                        </View>
+
+                        <View className="flex-row items-center gap-2">
+                          <Select
+                            value={{ value: field.type, label: field.type.toUpperCase() }}
+                            onValueChange={(opt) =>
+                              opt && updateField(index, { type: opt.value as FieldType })
+                            }>
+                            <SelectTrigger className="h-9 w-[110px] rounded-full border-0 bg-muted/50 px-3">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectItem label="TEXT" value="text" />
+                                <SelectItem label="NUMBER" value="number" />
+                                <SelectItem label="BOOLEAN" value="boolean" />
+                                <SelectItem label="IMAGE" value="image" />
+                                <SelectItem label="DATE" value="date" />
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+
+                          {index !== 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-destructive/10"
+                              onPress={() => removeField(index)}>
+                              <Icon as={Trash2} size={16} className="text-destructive" />
+                            </Button>
+                          )}
+                          {index === 0 && <View className="w-8" />}
+                        </View>
                       </View>
 
-                      <View className="flex-row items-center gap-2">
-                        <Select
-                          value={{ value: field.type, label: field.type.toUpperCase() }}
-                          onValueChange={(opt) =>
-                            opt && updateField(index, { type: opt.value as FieldType })
-                          }>
-                          <SelectTrigger className="h-9 w-[110px] rounded-full border-0 bg-muted/50 px-3">
-                            <SelectValue placeholder="Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectItem label="TEXT" value="text" />
-                              <SelectItem label="NUMBER" value="number" />
-                              <SelectItem label="BOOLEAN" value="boolean" />
-                              <SelectItem label="IMAGE" value="image" />
-                              <SelectItem label="DATE" value="date" />
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-
-                        {index !== 0 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full bg-destructive/10"
-                            onPress={() => removeField(index)}>
-                            <Icon as={Trash2} size={16} className="text-destructive" />
-                          </Button>
-                        )}
-                        {index === 0 && <View className="w-8" />}
+                      <View className="flex-row items-center justify-between border-t border-border pt-3">
+                        <Text className="text-sm font-medium text-muted-foreground">Required</Text>
+                        <Switch
+                          checked={field.required}
+                          onCheckedChange={(val) => updateField(index, { required: val })}
+                        />
                       </View>
                     </CardContent>
                   </Card>
