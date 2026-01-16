@@ -4,7 +4,8 @@ import * as Sharing from 'expo-sharing';
 import { DatabaseSchema } from '@/lib/types';
 import { Alert } from 'react-native';
 
-const DB_FILE = FileSystem.documentDirectory + 'mudir_db.json';
+const docDir = FileSystem.documentDirectory;
+const DB_FILE = (docDir || '') + 'mudir_db.json';
 
 export async function exportData(data: DatabaseSchema): Promise<boolean> {
   try {
@@ -18,7 +19,8 @@ export async function exportData(data: DatabaseSchema): Promise<boolean> {
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().split('T')[0];
     const exportFileName = `mudir_backup_${timestamp}.json`;
-    const exportPath = FileSystem.documentDirectory + exportFileName;
+    if (!docDir) throw new Error('Document directory is not available');
+    const exportPath = docDir + exportFileName;
 
     // Write data to file
     await FileSystem.writeAsStringAsync(exportPath, JSON.stringify(data, null, 2));

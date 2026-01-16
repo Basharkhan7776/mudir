@@ -2,8 +2,12 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { DatabaseSchema } from './types';
 import { seedData } from './seedData';
 
-const DB_FILE = FileSystem.documentDirectory + 'mudir_db.json';
-const TEMP_DB_FILE = FileSystem.documentDirectory + 'mudir_db.tmp';
+const docDir = FileSystem.documentDirectory;
+if (!docDir) {
+  console.error('FileSystem.documentDirectory is null!');
+}
+const DB_FILE = (docDir || '') + 'mudir_db.json';
+const TEMP_DB_FILE = (docDir || '') + 'mudir_db.tmp';
 
 const INITIAL_DB: DatabaseSchema = {
     meta: {

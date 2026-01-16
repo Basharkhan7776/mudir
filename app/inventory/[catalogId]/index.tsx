@@ -34,6 +34,72 @@ import { createStaggeredAnimation } from '@/lib/animations';
 import { useDispatch, useSelector } from 'react-redux';
 // Removed DynamicFieldRenderer import
 
+const CatalogListItem = React.memo(
+  ({
+    item,
+    catalogId,
+    schema,
+    isSelected,
+    isSelectionMode,
+    onPress,
+    onLongPress,
+    index,
+  }: {
+    item: any;
+    catalogId: string;
+    schema: any[];
+    isSelected: boolean;
+    isSelectionMode: boolean;
+    onPress: (id: string) => void;
+    onLongPress: (id: string) => void;
+    index: number;
+  }) => {
+    // Assumption: 0=Name, 1=SKU
+    const fields = schema;
+    const mainField = fields[0]; // e.g. Name
+    const subField = fields[1]; // e.g. SKU
+
+    const mainValue = item.values[mainField?.key] || 'Untitled';
+    const subValue = subField ? item.values[subField.key] : '';
+
+    return (
+      <Animated.View
+        entering={createStaggeredAnimation(index - 2).withInitialValues({ opacity: 0 })}
+        exiting={FadeOutUp.duration(200)}
+        layout={LinearTransition.duration(300).damping(30)}
+        className="mb-4 px-5">
+        <Link href={`/inventory/${catalogId}/${item.id}`} asChild={!isSelectionMode}>
+          <Pressable
+            delayLongPress={200}
+            onLongPress={() => onLongPress(item.id)}
+            onPress={() => onPress(item.id)}
+            disabled={isSelectionMode ? false : undefined}>
+            <Card
+              className={`w-full flex-row items-center rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
+              <View className="mr-4 items-center justify-center">
+                <View
+                  className={`h-2 w-2 rounded-full ${isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'}`}
+                />
+              </View>
+              <View className="flex-1 gap-1">
+                <Text className="text-lg font-bold text-foreground">{mainValue}</Text>
+                {subValue ? (
+                  <Text className="text-xs font-semibold uppercase text-muted-foreground/70">
+                    {subField?.label}: {subValue}
+                  </Text>
+                ) : null}
+              </View>
+              {!isSelectionMode && (
+                <Icon as={ChevronRight} size={20} className="text-gray-300 dark:text-gray-600" />
+              )}
+            </Card>
+          </Pressable>
+        </Link>
+      </Animated.View>
+    );
+  }
+);
+
 export default function CatalogScreen() {
   const { catalogId } = useLocalSearchParams<{ catalogId: string }>();
   const router = useRouter();
@@ -108,19 +174,25 @@ export default function CatalogScreen() {
     setSelectedIds(newSelected);
   };
 
-  const handleLongPress = (id: string) => {
-    if (!isSelectionMode) {
-      setSelectedIds(new Set([id]));
-    }
-  };
+  const handleLongPress = React.useCallback(
+    (id: string) => {
+      if (!isSelectionMode) {
+        setSelectedIds(new Set([id]));
+      }
+    },
+    [isSelectionMode]
+  );
 
-  const handlePress = (id: string) => {
-    if (isSelectionMode) {
-      toggleSelection(id);
-    } else {
-      router.push(`/inventory/${catalogId}/${id}`);
-    }
-  };
+  const handlePress = React.useCallback(
+    (id: string) => {
+      if (isSelectionMode) {
+        toggleSelection(id);
+      } else {
+        router.push(`/inventory/${catalogId}/${id}`);
+      }
+    },
+    [isSelectionMode, toggleSelection, router, catalogId]
+  );
 
   const handleBatchDelete = () => {
     selectedIds.forEach((id) => {
@@ -188,54 +260,20 @@ export default function CatalogScreen() {
               );
             }
 
-            // Assumption: 0=Name, 1=SKU
-            const fields = collection.schema;
-            const mainField = fields[0]; // e.g. Name
-            const subField = fields[1]; // e.g. SKU
-
-            const mainValue = item.values[mainField?.key] || 'Untitled';
-            const subValue = subField ? item.values[subField.key] : '';
-
             const isSelected = selectedIds.has(item.id);
 
             return (
-              <Animated.View
-                entering={createStaggeredAnimation(index - 2).withInitialValues({ opacity: 0 })}
-                exiting={FadeOutUp.duration(200)}
-                layout={LinearTransition.duration(300).damping(30)}
-                className="mb-4 px-5">
-                <Link href={`/inventory/${catalogId}/${item.id}`} asChild={!isSelectionMode}>
-                  <Pressable
-                    delayLongPress={200}
-                    onLongPress={() => handleLongPress(item.id)}
-                    onPress={() => handlePress(item.id)}
-                    disabled={isSelectionMode ? false : undefined}>
-                    <Card
-                      className={`w-full flex-row items-center rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
-                      <View className="mr-4 items-center justify-center">
-                        <View
-                          className={`h-2 w-2 rounded-full ${isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'}`}
-                        />
-                      </View>
-                      <View className="flex-1 gap-1">
-                        <Text className="text-lg font-bold text-foreground">{mainValue}</Text>
-                        {subValue ? (
-                          <Text className="text-xs font-semibold uppercase text-muted-foreground/70">
-                            {subField?.label}: {subValue}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {!isSelectionMode && (
-                        <Icon
-                          as={ChevronRight}
-                          size={20}
-                          className="text-gray-300 dark:text-gray-600"
-                        />
-                      )}
-                    </Card>
-                  </Pressable>
-                </Link>
-              </Animated.View>
+              <CatalogListItem
+                key={item.id}
+                item={item}
+                catalogId={catalogId}
+                schema={collection.schema}
+                index={index}
+                isSelected={isSelected}
+                isSelectionMode={isSelectionMode}
+                onPress={handlePress}
+                onLongPress={handleLongPress}
+              />
             );
           }}
         />
