@@ -26,6 +26,56 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Trash2 } from 'lucide-react-native';
 
+const CollectionListItem = React.memo(
+  ({
+    item,
+    isSelected,
+    isSelectionMode,
+    onPress,
+    onLongPress,
+    index,
+  }: {
+    item: any;
+    isSelected: boolean;
+    isSelectionMode: boolean;
+    onPress: (id: string) => void;
+    onLongPress: (id: string) => void;
+    index: number;
+  }) => {
+    return (
+      <Animated.View
+        entering={createStaggeredAnimation(index - 2).withInitialValues({ opacity: 0 })}
+        exiting={FadeOutUp.duration(200)}
+        layout={LinearTransition.duration(300).damping(30)}
+        className="mb-4 px-5">
+        <Link href={`/inventory/${item.id}`} asChild={!isSelectionMode}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onLongPress={() => onLongPress(item.id)}
+            onPress={() => onPress(item.id)}
+            disabled={isSelectionMode ? false : undefined}>
+            <Card
+              className={`w-full flex-row items-center rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
+              <View className="mr-4 items-center justify-center">
+                <View
+                  className={`h-2 w-2 rounded-full ${isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'}`}
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="text-lg font-bold text-foreground">{item.name}</Text>
+                <Text className="text-muted-foreground">{item.data.length} items</Text>
+              </View>
+              {!isSelectionMode && (
+                <Icon as={ChevronRight} size={20} className="text-gray-300 dark:text-gray-600" />
+              )}
+            </Card>
+          </TouchableOpacity>
+        </Link>
+      </Animated.View>
+    );
+  }
+);
+
 export default function InventoryScreen() {
   const collections = useSelector((state: RootState) => state.inventory.collections);
   const dispatch = useDispatch();
@@ -66,19 +116,25 @@ export default function InventoryScreen() {
     setSelectedIds(newSelected);
   };
 
-  const handleLongPress = (id: string) => {
-    if (!isSelectionMode) {
-      setSelectedIds(new Set([id]));
-    }
-  };
+  const handleLongPress = React.useCallback(
+    (id: string) => {
+      if (!isSelectionMode) {
+        setSelectedIds(new Set([id]));
+      }
+    },
+    [isSelectionMode]
+  );
 
-  const handlePress = (id: string) => {
-    if (isSelectionMode) {
-      toggleSelection(id);
-    } else {
-      router.push(`/inventory/${id}`);
-    }
-  };
+  const handlePress = React.useCallback(
+    (id: string) => {
+      if (isSelectionMode) {
+        toggleSelection(id);
+      } else {
+        router.push(`/inventory/${id}`);
+      }
+    },
+    [isSelectionMode, toggleSelection, router]
+  );
 
   return (
     <>
@@ -144,39 +200,15 @@ export default function InventoryScreen() {
             const isSelected = selectedIds.has(item.id);
 
             return (
-              <Animated.View
-                entering={createStaggeredAnimation(index - 2).withInitialValues({ opacity: 0 })}
-                exiting={FadeOutUp.duration(200)}
-                layout={LinearTransition.duration(300).damping(30)}
-                className="mb-4 px-5">
-                <Link href={`/inventory/${item.id}`} asChild={!isSelectionMode}>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onLongPress={() => handleLongPress(item.id)}
-                    onPress={() => handlePress(item.id)}
-                    disabled={isSelectionMode ? false : undefined}>
-                    <Card
-                      className={`w-full flex-row items-center rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
-                      <View className="mr-4 items-center justify-center">
-                        <View
-                          className={`h-2 w-2 rounded-full ${isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'}`}
-                        />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-lg font-bold text-foreground">{item.name}</Text>
-                        <Text className="text-muted-foreground">{item.data.length} items</Text>
-                      </View>
-                      {!isSelectionMode && (
-                        <Icon
-                          as={ChevronRight}
-                          size={20}
-                          className="text-gray-300 dark:text-gray-600"
-                        />
-                      )}
-                    </Card>
-                  </TouchableOpacity>
-                </Link>
-              </Animated.View>
+              <CollectionListItem
+                key={item.id}
+                item={item}
+                index={index}
+                isSelected={isSelected}
+                isSelectionMode={isSelectionMode}
+                onPress={handlePress}
+                onLongPress={handleLongPress}
+              />
             );
           }}
         />

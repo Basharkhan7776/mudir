@@ -64,7 +64,8 @@ export default function ItemDetailScreen() {
       case 'boolean':
         return value ? 'Yes' : 'No';
       case 'date':
-        return new Date(value).toLocaleDateString();
+        const d = new Date(value);
+        return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
       case 'currency':
         return `${currencySymbol}${value} `;
       default:
@@ -103,11 +104,10 @@ export default function ItemDetailScreen() {
             </Text>
             <Text className="text-sm font-medium text-muted-foreground">
               Added:{' '}
-              {new Date(item.createdAt).toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}{' '}
+              {(() => {
+                const d = new Date(item.createdAt);
+                return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+              })()}{' '}
               by Admin
             </Text>
           </View>

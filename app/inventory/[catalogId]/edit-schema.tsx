@@ -7,7 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import {
   Plus,
-  X,
+  ArrowLeft,
+  Check,
   Trash2,
   Type,
   Hash,
@@ -105,20 +106,24 @@ export default function EditSchemaScreen() {
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 bg-background">
-        <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6 pt-6">
-          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
-            <Icon as={X} size={24} className="text-foreground" />
+        className="flex-1 bg-background pt-12">
+        <View className="z-10 flex-row items-center justify-between px-5 pb-4">
+          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-3 mt-1">
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
           </Button>
-          <Text className="text-lg font-bold text-foreground">Edit Collection</Text>
-          <Button variant="ghost" onPress={handleSave} disabled={!name.trim()}>
-            <Text className={!name.trim() ? 'text-muted-foreground' : 'font-bold text-primary'}>
-              Save
-            </Text>
+          <Text className="flex-1 text-center text-xl font-bold text-foreground">
+            Edit Collection
+          </Text>
+          <Button variant="ghost" size="icon" onPress={handleSave} disabled={!name.trim()}>
+            <Icon
+              as={Check}
+              size={24}
+              className={!name.trim() ? 'text-muted-foreground' : 'text-primary'}
+            />
           </Button>
         </View>
 
-        <ScrollView contentContainerClassName="p-5 gap-8 pb-32">
+        <ScrollView className="flex-1" contentContainerClassName="p-5 gap-8 pb-32">
           {/* Identity Section */}
           <View>
             <Text className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">

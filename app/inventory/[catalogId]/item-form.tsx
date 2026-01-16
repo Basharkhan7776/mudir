@@ -13,9 +13,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { X } from 'lucide-react-native';
+import { ArrowLeft, Check, Calendar } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Platform, KeyboardAvoidingView } from 'react-native';
+import { ScrollView, View, Platform, KeyboardAvoidingView, Pressable } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { addItem, updateItem } from '@/lib/store/slices/inventorySlice';
 import { RootState } from '@/lib/store';
@@ -30,6 +31,7 @@ export default function ItemFormScreen() {
   const existingItem = collection?.data.find((i) => i.id === itemId);
 
   const [values, setValues] = useState<Record<string, any>>({});
+  const [datePickerField, setDatePickerField] = useState<string | null>(null);
 
   useEffect(() => {
     if (existingItem) {
@@ -119,13 +121,35 @@ export default function ItemFormScreen() {
           </View>
         );
       case 'date':
-        // Simple text input for date for now
         return (
-          <Input
-            placeholder="YYYY-MM-DD"
-            value={values[field.key] || ''}
-            onChangeText={(text) => setValues({ ...values, [field.key]: text })}
-          />
+          <View>
+            <Pressable
+              onPress={() => setDatePickerField(field.key)}
+              className="flex-row items-center justify-between rounded-xl border border-input bg-background px-3 py-3">
+              <Text className={values[field.key] ? 'text-foreground' : 'text-muted-foreground'}>
+                {values[field.key]
+                  ? (() => {
+                      const d = new Date(values[field.key]);
+                      return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+                    })()
+                  : 'DD-MM-YYYY'}
+              </Text>
+              <Icon as={Calendar} size={20} className="text-muted-foreground" />
+            </Pressable>
+            {datePickerField === field.key && (
+              <DateTimePicker
+                value={values[field.key] ? new Date(values[field.key]) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setDatePickerField(null);
+                  if (selectedDate) {
+                    setValues({ ...values, [field.key]: selectedDate.toISOString() });
+                  }
+                }}
+              />
+            )}
+          </View>
         );
       case 'number':
         return (
@@ -162,20 +186,20 @@ export default function ItemFormScreen() {
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 bg-background">
-        <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6 pt-6">
-          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
-            <Icon as={X} size={24} className="text-foreground" />
+        className="flex-1 bg-background pt-12">
+        <View className="z-10 flex-row items-center justify-between px-5 pb-4">
+          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-3 mt-1">
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
           </Button>
-          <Text className="text-lg font-bold text-foreground">
+          <Text className="flex-1 text-center text-xl font-bold text-foreground">
             {itemId ? 'Edit Item' : 'New Item'}
           </Text>
-          <Button variant="ghost" onPress={handleSave}>
-            <Text className="font-bold text-primary">Save</Text>
+          <Button variant="ghost" size="icon" onPress={handleSave}>
+            <Icon as={Check} size={24} className="text-primary" />
           </Button>
         </View>
 
-        <ScrollView contentContainerClassName="p-5 gap-8 pb-32">
+        <ScrollView className="flex-1" contentContainerClassName="p-5 gap-8 pb-32">
           {/* Item Details Section */}
           <View>
             <Text className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">

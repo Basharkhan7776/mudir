@@ -134,7 +134,7 @@ export default function PartyScreen() {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
 
-      let title = date.toLocaleDateString();
+      let title = `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
       if (date.toDateString() === today.toDateString()) title = 'Today';
       else if (date.toDateString() === yesterday.toDateString()) title = 'Yesterday';
 
@@ -221,69 +221,70 @@ export default function PartyScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-1 bg-background pt-12">
-        {/* Header */}
-        <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">
-          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
-            <Icon as={ArrowLeft} size={24} className="text-foreground" />
-          </Button>
-          <View className="items-center">
-            <Text className="text-lg font-bold text-foreground">{entry.organization.name}</Text>
-            <Text className="mt-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              Net Balance
-            </Text>
-            <Text className="mt-1 text-3xl font-black text-foreground">
-              {currencySymbol}{' '}
-              {Math.abs(netBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </Text>
-            <View
-              className={`mt-1 rounded-full px-2 py-0.5 ${netBalance > 0 ? 'bg-green-100 dark:bg-green-900' : netBalance < 0 ? 'bg-red-100 dark:bg-red-900' : 'bg-gray-100'}`}>
-              <Text
-                className={`text-[10px] font-bold ${netBalance > 0 ? 'text-green-700 dark:text-green-300' : netBalance < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-500'}`}>
-                {netBalance > 0 ? 'YOU WILL GET' : netBalance < 0 ? 'YOU WILL GIVE' : 'SETTLED'}
-              </Text>
-            </View>
-          </View>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                {isPrintingPDF ? (
-                  <ActivityIndicator size="small" />
-                ) : (
-                  <Icon as={MoreVertical} size={24} className="text-foreground" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onPress={handlePrintPDF}>
-                <Icon as={Printer} size={16} className="mr-2 text-foreground" />
-                <Text>Save PDF</Text>
-              </DropdownMenuItem>
-              <DropdownMenuItem onPress={() => setIsEditingOrg(true)}>
-                <Icon as={Edit} size={16} className="mr-2 text-foreground" />
-                <Text>Edit Name</Text>
-              </DropdownMenuItem>
-              {isSelectionMode && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onPress={handleDeleteSelected}>
-                    <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
-                    <Text className="text-destructive">Delete Selected ({selectedIds.size})</Text>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </View>
-
-        {/* Content */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
           className="flex-1">
+          {/* Header */}
+          <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">
+            <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
+              <Icon as={ArrowLeft} size={24} className="text-foreground" />
+            </Button>
+            <View className="items-center">
+              <Text className="text-lg font-bold text-foreground">{entry.organization.name}</Text>
+              <Text className="mt-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Net Balance
+              </Text>
+              <Text className="mt-1 text-3xl font-black text-foreground">
+                {currencySymbol}{' '}
+                {Math.abs(netBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </Text>
+              <View
+                className={`mt-1 rounded-full px-2 py-0.5 ${netBalance > 0 ? 'bg-green-100 dark:bg-green-900' : netBalance < 0 ? 'bg-red-100 dark:bg-red-900' : 'bg-gray-100'}`}>
+                <Text
+                  className={`text-[10px] font-bold ${netBalance > 0 ? 'text-green-700 dark:text-green-300' : netBalance < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-500'}`}>
+                  {netBalance > 0 ? 'YOU WILL GET' : netBalance < 0 ? 'YOU WILL GIVE' : 'SETTLED'}
+                </Text>
+              </View>
+            </View>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  {isPrintingPDF ? (
+                    <ActivityIndicator size="small" />
+                  ) : (
+                    <Icon as={MoreVertical} size={24} className="text-foreground" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onPress={handlePrintPDF}>
+                  <Icon as={Printer} size={16} className="mr-2 text-foreground" />
+                  <Text>Save PDF</Text>
+                </DropdownMenuItem>
+                <DropdownMenuItem onPress={() => setIsEditingOrg(true)}>
+                  <Icon as={Edit} size={16} className="mr-2 text-foreground" />
+                  <Text>Edit Name</Text>
+                </DropdownMenuItem>
+                {isSelectionMode && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onPress={handleDeleteSelected}>
+                      <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
+                      <Text className="text-destructive">Delete Selected ({selectedIds.size})</Text>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </View>
+
+          {/* Content */}
           <FlatList
+            className="flex-1"
             ref={flatListRef}
             data={flatListData}
             keyExtractor={(item) => item.id}
