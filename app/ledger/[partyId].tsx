@@ -223,7 +223,6 @@ export default function PartyScreen() {
       <View className="flex-1 bg-background pt-12">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-          keyboardVerticalOffset={10}
           className="flex-1">
           {/* Header */}
           <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">
@@ -374,7 +373,7 @@ export default function PartyScreen() {
           />
 
           {/* Footer Input Area */}
-          <View className="border-t border-border bg-card p-4">
+          <View className="border-t border-border bg-card p-4 pb-4">
             <View className="mb-4 flex-row gap-4">
               {/* Amount Input */}
               <View className="flex-[1.2] justify-center rounded-2xl bg-muted px-4 py-3">
@@ -409,7 +408,7 @@ export default function PartyScreen() {
             </View>
 
             {/* Action Buttons */}
-            <View className="mb-2 h-14 flex-row gap-4">
+            <View className="h-14 flex-row gap-4">
               <Pressable
                 onPress={() => handleTransaction('DEBIT')}
                 className="flex-1 items-center justify-center rounded-full border border-border bg-white shadow-sm active:scale-95">
