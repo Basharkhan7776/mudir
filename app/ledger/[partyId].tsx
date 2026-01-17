@@ -222,8 +222,8 @@ export default function PartyScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-1 bg-background pt-12">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          keyboardVerticalOffset={10}
           className="flex-1">
           {/* Header */}
           <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">

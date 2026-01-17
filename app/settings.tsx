@@ -34,7 +34,7 @@ import {
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
-import { ScrollView, View, TouchableOpacity, Alert } from 'react-native';
+import { ScrollView, View, Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
 import {
@@ -46,7 +46,7 @@ import { setCollections } from '@/lib/store/slices/inventorySlice';
 import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { exportData, importData } from '@/lib/utils/export-import';
 import { Icon } from '@/components/ui/icon';
-import { getEmptyData, getSeedData } from '@/lib/seed';
+import { seedDatabase, clearDatabase, getSeedData } from '@/lib/seed';
 
 const CURRENCIES = [
   { value: '₹', label: 'Indian Rupee (INR)' },
@@ -69,21 +69,24 @@ export default function SettingsScreen() {
   const [successMessage, setSuccessMessage] = useState('');
 
   const handleExport = async () => {
+    console.log('[Settings] Starting export...');
     setIsExporting(true);
-    const data = {
-      meta: settings,
-      collections: inventory.collections,
-      ledger: ledger.entries,
-    };
-    const success = await exportData(data);
-    setIsExporting(false);
-    if (success) {
-      setSuccessMessage('Data exported successfully');
-      setSuccessDialogOpen(true);
+    try {
+      const success = await exportData();
+      console.log('[Settings] Export result:', success);
+      if (success) {
+        setSuccessMessage('Data exported successfully');
+        setSuccessDialogOpen(true);
+      }
+    } catch (e) {
+      console.error('[Settings] Export failed:', e);
+    } finally {
+      setIsExporting(false);
     }
   };
 
   const handleImport = async () => {
+    console.log('importing');
     setIsImporting(true);
     const data = await importData();
     setIsImporting(false);
@@ -97,13 +100,26 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSeed = () => {
-    const data = getSeedData();
-    dispatch(setSettings(data.meta));
-    dispatch(setCollections(data.collections));
-    dispatch(setLedger(data.ledger));
-    setSuccessMessage('Database seeded successfully');
-    setSuccessDialogOpen(true);
+  const handleSeed = async () => {
+    console.log('[Settings] Starting seed...');
+    try {
+      const success = await seedDatabase();
+      console.log('[Settings] Seed result:', success);
+      if (success) {
+        // Import seedData directly/reuse to update redux to avoid reload requirement
+        const data = getSeedData();
+        console.log('[Settings] Dispatching seed data to Redux');
+        dispatch(setSettings(data.meta));
+        dispatch(setCollections(data.collections));
+        dispatch(setLedger(data.ledger));
+        setSuccessMessage('Database seeded successfully');
+        setSuccessDialogOpen(true);
+      } else {
+        console.error('[Settings] Seed returned false');
+      }
+    } catch (e) {
+      console.error('[Settings] Seed failed:', e);
+    }
   };
 
   const handleClear = () => {
@@ -112,13 +128,24 @@ export default function SettingsScreen() {
       {
         text: 'Delete All',
         style: 'destructive',
-        onPress: () => {
-          const data = getEmptyData();
-          dispatch(setSettings(data.meta));
-          dispatch(setCollections(data.collections));
-          dispatch(setLedger(data.ledger));
-          setSuccessMessage('Database cleared');
-          setSuccessDialogOpen(true);
+        onPress: async () => {
+          console.log('[Settings] Starting clear...');
+          try {
+            const success = await clearDatabase();
+            console.log('[Settings] Clear result:', success);
+            if (success) {
+              console.log('[Settings] Dispatching empty state to Redux');
+              dispatch(setSettings({ ...settings, isNewUser: true })); // Reset specific settings if needed or just keep simplistic
+              dispatch(setCollections([]));
+              dispatch(setLedger([]));
+              setSuccessMessage('Database cleared');
+              setSuccessDialogOpen(true);
+            } else {
+              console.error('[Settings] Clear returned false');
+            }
+          } catch (e) {
+            console.error('[Settings] Clear failed:', e);
+          }
         },
       },
     ]);
@@ -234,8 +261,12 @@ export default function SettingsScreen() {
               Data Management
             </Text>
             <View className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-              <TouchableOpacity onPress={handleExport} disabled={isExporting}>
-                <View className="flex-row items-center justify-between p-4 active:bg-muted/50">
+              <Button
+                variant="ghost"
+                className="h-auto w-full flex-col items-stretch justify-start p-0"
+                onPress={handleExport}
+                disabled={isExporting}>
+                <View className="w-full flex-row items-center justify-between p-4">
                   <View className="flex-row items-center gap-3">
                     <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
                       <Icon as={FileDown} size={18} className="text-primary-foreground" />
@@ -244,10 +275,14 @@ export default function SettingsScreen() {
                   </View>
                   <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
                 </View>
-              </TouchableOpacity>
+              </Button>
 
-              <TouchableOpacity onPress={handleImport} disabled={isImporting}>
-                <View className="flex-row items-center justify-between p-4 active:bg-muted/50">
+              <Button
+                variant="ghost"
+                className="h-auto w-full flex-col items-stretch justify-start p-0"
+                onPress={handleImport}
+                disabled={isImporting}>
+                <View className="w-full flex-row items-center justify-between p-4">
                   <View className="flex-row items-center gap-3">
                     <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
                       <Icon as={FileUp} size={18} className="text-primary-foreground" />
@@ -256,10 +291,13 @@ export default function SettingsScreen() {
                   </View>
                   <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
                 </View>
-              </TouchableOpacity>
+              </Button>
 
-              <TouchableOpacity onPress={handleSeed}>
-                <View className="flex-row items-center justify-between p-4 active:bg-muted/50">
+              <Button
+                variant="ghost"
+                className="h-auto w-full flex-col items-stretch justify-start p-0"
+                onPress={handleSeed}>
+                <View className="w-full flex-row items-center justify-between p-4">
                   <View className="flex-row items-center gap-3">
                     <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
                       <Icon as={Database} size={18} className="text-primary-foreground" />
@@ -268,10 +306,13 @@ export default function SettingsScreen() {
                   </View>
                   <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
                 </View>
-              </TouchableOpacity>
+              </Button>
 
-              <TouchableOpacity onPress={handleClear}>
-                <View className="flex-row items-center justify-between p-4 active:bg-muted/50">
+              <Button
+                variant="ghost"
+                className="h-auto w-full flex-col items-stretch justify-start p-0"
+                onPress={handleClear}>
+                <View className="w-full flex-row items-center justify-between p-4">
                   <View className="flex-row items-center gap-3">
                     <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
                       <Icon as={Trash2} size={18} className="text-primary-foreground" />
@@ -280,7 +321,7 @@ export default function SettingsScreen() {
                   </View>
                   <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
                 </View>
-              </TouchableOpacity>
+              </Button>
             </View>
           </View>
         </ScrollView>
