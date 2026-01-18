@@ -83,6 +83,10 @@ Prerequisites: Node.js and Bun (recommended).
 - **PDF Generation:** Generate reports and invoices on the fly.
 - **Offline First:** Complete functionality without network dependency.
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ---
 
 _Engineered for performance and reliability._
