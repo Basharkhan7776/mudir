@@ -20,6 +20,7 @@ import Animated, {
   LinearTransition,
 } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
+import { searchOrganizations } from '@/components/fuzzy-search';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LedgerListItem = React.memo(
   ({
@@ -100,6 +102,7 @@ const LedgerListItem = React.memo(
 );
 export default function LedgerScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const entries = useSelector((state: RootState) => state.ledger.entries);
   const dispatch = useDispatch();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -198,13 +201,16 @@ export default function LedgerScreen() {
   const filteredEntries = useMemo(() => {
     if (!searchQuery.trim()) return entries;
 
-    const query = searchQuery.toLowerCase();
-    return entries.filter(
-      (entry) =>
-        entry.organization.name.toLowerCase().includes(query) ||
-        entry.organization.phone?.toLowerCase().includes(query) ||
-        entry.organization.email?.toLowerCase().includes(query)
+    const results = searchOrganizations(
+      entries.map((e) => e.organization),
+      searchQuery
     );
+    return results
+      .map((r) => {
+        const org = r.item as unknown as { id: string };
+        return entries.find((e) => e.organization.id === org.id);
+      })
+      .filter(Boolean);
   }, [entries, searchQuery]);
 
   const listData = useMemo(() => {
@@ -290,71 +296,71 @@ export default function LedgerScreen() {
           }}
         />
 
-        {/* Action Buttons */}
+        {/* Floating Action Buttons */}
         <Animated.View
           entering={FadeInDown.delay(500)}
-          className="pointer-events-box-none absolute bottom-8 left-0 right-0 flex-row justify-between px-6">
-          {isSelectionMode ? (
-            <>
-              <View className="pointer-events-auto">
-                {selectedIds.size === 1 && (
-                  <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        const id = Array.from(selectedIds)[0];
-                        const org = entries.find((e) => e.organization.id === id)?.organization;
-                        if (org) {
-                          openEditDialog(org);
-                        }
-                        setSelectedIds(new Set());
-                      }}
-                      className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                      <Icon as={Pencil} size={24} className="text-white dark:text-black" />
-                    </TouchableOpacity>
-                  </Animated.View>
-                )}
-              </View>
+          className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
+          style={{ paddingBottom: insets.bottom + 6 }}>
+          {/* Edit Button */}
+          {isSelectionMode && selectedIds.size === 1 && (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  const id = Array.from(selectedIds)[0];
+                  const org = entries.find((e) => e.organization.id === id)?.organization;
+                  if (org) {
+                    openEditDialog(org);
+                  }
+                  setSelectedIds(new Set());
+                }}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Pencil} size={24} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
-              <View className="pointer-events-auto">
-                <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <TouchableOpacity
-                        activeOpacity={0.8}
-                        className="h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-black shadow-lg dark:border-gray-700 dark:bg-white">
-                        <Icon as={Trash2} size={28} className="text-white dark:text-black" />
-                      </TouchableOpacity>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Organizations</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete {selectedIds.size} organization(s)?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>
-                          <Text>Cancel</Text>
-                        </AlertDialogCancel>
-                        <AlertDialogAction onPress={handleBatchDelete}>
-                          <Text>Delete</Text>
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </Animated.View>
-              </View>
-            </>
-          ) : (
-            <View className="pointer-events-auto flex-1 items-end">
-              <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
-                <Pressable
-                  onPress={openCreateDialog}
-                  className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                  <Icon as={Plus} size={32} className="text-white dark:text-black" />
-                </Pressable>
-              </Animated.View>
-            </View>
+          {/* Add Button */}
+          {!isSelectionMode && (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={openCreateDialog}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Plus} size={28} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Delete Button */}
+          {isSelectionMode && selectedIds.size > 0 && (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                    <Icon as={Trash2} size={24} className="text-white dark:text-black" />
+                  </TouchableOpacity>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Organizations</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete {selectedIds.size} organization(s)?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      <Text>Cancel</Text>
+                    </AlertDialogCancel>
+                    <AlertDialogAction onPress={handleBatchDelete}>
+                      <Text>Delete</Text>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </Animated.View>
           )}
         </Animated.View>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

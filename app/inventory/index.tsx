@@ -10,8 +10,10 @@ import { ArrowLeft, ChevronRight, Plus, Pencil } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
 import { View, Pressable, TouchableOpacity } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
+import { searchCollections } from '@/components/fuzzy-search';
 
 import {
   AlertDialog,
@@ -80,6 +82,7 @@ export default function InventoryScreen() {
   const collections = useSelector((state: RootState) => state.inventory.collections);
   const dispatch = useDispatch();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -88,12 +91,16 @@ export default function InventoryScreen() {
   const filteredCollections = useMemo(() => {
     if (!searchQuery.trim()) return collections;
 
-    const query = searchQuery.toLowerCase();
-    return collections.filter(
-      (collection) =>
-        collection.name.toLowerCase().includes(query) ||
-        collection.description?.toLowerCase().includes(query)
+    const results = searchCollections(
+      collections.map((c) => ({ id: c.id, name: c.name, description: c.description })),
+      searchQuery
     );
+    return results
+      .map((r) => {
+        const item = r.item as unknown as { id: string; name: string; description?: string };
+        return collections.find((c) => c.id === item.id);
+      })
+      .filter(Boolean);
   }, [collections, searchQuery]);
 
   const listData = useMemo(() => {
@@ -213,13 +220,12 @@ export default function InventoryScreen() {
           }}
         />
 
-        {/* Floating Action Button */}
-
-        {/* Action Buttons */}
+        {/* Floating Action Buttons */}
         <Animated.View
           entering={FadeInDown.delay(500)}
-          className="pointer-events-box-none absolute bottom-8 left-0 right-0 flex-row justify-between px-6">
-          {/* Edit Button (Left) - Only when 1 item selected */}
+          className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
+          style={{ paddingBottom: insets.bottom + 6 }}>
+          {/* Edit Button */}
           {isSelectionMode && selectedIds.size === 1 ? (
             <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
               <TouchableOpacity
@@ -228,23 +234,35 @@ export default function InventoryScreen() {
                   const id = Array.from(selectedIds)[0];
                   router.push(`/inventory/${id}/edit-schema` as any);
                 }}
-                className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                <Icon as={Pencil} size={28} className="text-white dark:text-black" />
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Pencil} size={24} className="text-white dark:text-black" />
               </TouchableOpacity>
             </Animated.View>
           ) : (
-            <View />
+            <View className="h-14 w-14" />
           )}
 
-          {/* Right Action Button (Plus or Delete) */}
-          {isSelectionMode ? (
+          {/* Add Button */}
+          {!isSelectionMode && (
+            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/inventory/schema-builder')}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Plus} size={28} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Delete Button */}
+          {isSelectionMode && selectedIds.size > 0 && (
             <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                    <Icon as={Trash2} size={28} className="text-white dark:text-black" />
+                    className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                    <Icon as={Trash2} size={24} className="text-white dark:text-black" />
                   </TouchableOpacity>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -271,15 +289,6 @@ export default function InventoryScreen() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </Animated.View>
-          ) : (
-            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => router.push('/inventory/schema-builder')}
-                className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                <Icon as={Plus} size={32} className="text-white dark:text-black" />
-              </TouchableOpacity>
             </Animated.View>
           )}
         </Animated.View>

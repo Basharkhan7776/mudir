@@ -26,12 +26,22 @@ import {
 import { deleteItem } from '@/lib/store/slices/inventorySlice';
 import { RootState } from '@/lib/store';
 import { Link, Stack, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { Plus, Trash2, Settings, Search, ArrowLeft, ChevronRight } from 'lucide-react-native';
+import {
+  Plus,
+  Trash2,
+  Settings,
+  Search,
+  ArrowLeft,
+  ChevronRight,
+  Pencil,
+} from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
 import { View, Pressable, TouchableOpacity } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
 import { useDispatch, useSelector } from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { searchItems } from '@/components/fuzzy-search';
 // Removed DynamicFieldRenderer import
 
 const CatalogListItem = React.memo(
@@ -103,6 +113,7 @@ const CatalogListItem = React.memo(
 export default function CatalogScreen() {
   const { catalogId } = useLocalSearchParams<{ catalogId: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const collectionStore = useSelector((state: RootState) =>
     state.inventory.collections.find((c) => c.id === catalogId)
   );
@@ -140,18 +151,13 @@ export default function CatalogScreen() {
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return collection.data;
 
-    const query = searchQuery.toLowerCase();
-    return collection.data.filter((item) => {
-      // Search across all field values
-      return collection.schema.some((field) => {
-        const value = item.values[field.key];
-        if (value === null || value === undefined) return false;
-
-        // Convert value to string for searching
-        const stringValue = value.toString().toLowerCase();
-        return stringValue.includes(query);
-      });
-    });
+    const results = searchItems([collection], searchQuery);
+    return results
+      .map((r) => {
+        const item = r.item as unknown as { id: string };
+        return collection.data.find((d) => d.id === item.id);
+      })
+      .filter(Boolean);
   }, [collection.data, collection.schema, searchQuery]);
 
   const listData = useMemo(() => {
@@ -278,21 +284,47 @@ export default function CatalogScreen() {
           }}
         />
 
-        {/* Floating Action Button */}
-
-        {/* Action Buttons */}
+        {/* Floating Action Buttons */}
         <Animated.View
           entering={FadeInDown.delay(500)}
-          className="pointer-events-box-none absolute bottom-8 left-0 right-0 flex-row justify-end px-6">
-          {/* Right Action Button (Plus or Delete) */}
-          {isSelectionMode ? (
+          className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
+          style={{ paddingBottom: insets.bottom + 6 }}>
+          {/* Edit Button */}
+          {isSelectionMode && selectedIds.size === 1 && (
+            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  const id = Array.from(selectedIds)[0];
+                  router.push(`/inventory/${catalogId}/item-form?itemId=${id}`);
+                }}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Pencil} size={24} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Add Button */}
+          {!isSelectionMode && (
+            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push(`/inventory/${catalogId}/item-form`)}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Plus} size={28} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Delete Button */}
+          {isSelectionMode && selectedIds.size > 0 && (
             <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                    <Icon as={Trash2} size={28} className="text-white dark:text-black" />
+                    className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                    <Icon as={Trash2} size={24} className="text-white dark:text-black" />
                   </TouchableOpacity>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -313,16 +345,6 @@ export default function CatalogScreen() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </Animated.View>
-          ) : (
-            <Animated.View entering={FadeInDown} exiting={FadeOutUp}>
-              <Pressable
-                onPress={() => {
-                  router.push(`/inventory/${catalogId}/item-form`);
-                }}
-                className="h-16 w-16 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-                <Icon as={Plus} size={32} className="text-white dark:text-black" />
-              </Pressable>
             </Animated.View>
           )}
         </Animated.View>
