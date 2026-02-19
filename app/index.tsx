@@ -1,9 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import { ArrowRight, Box, CreditCard, Search, Settings } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { Platform, ScrollView, View, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -12,10 +12,12 @@ import { Icon } from '@/components/ui/icon';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/lib/store';
 import { completeOnboarding } from '@/lib/store/slices/settingsSlice';
+import { SearchModal } from '@/components/search-modal';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const [searchOpen, setSearchOpen] = useState(false);
   const isNewUser = useSelector((state: RootState) => state.settings.isNewUser);
   const collections = useSelector((state: RootState) => state.inventory.collections);
   const ledgerEntries = useSelector((state: RootState) => state.ledger.entries);
@@ -57,6 +59,9 @@ export default function HomeScreen() {
           className="mb-2 flex-row items-center justify-between py-2"
           entering={Platform.OS !== 'web' ? FadeInUp.duration(400).damping(30) : undefined}>
           <Text className="text-4xl font-black tracking-tight text-foreground">Mudir</Text>
+          <TouchableOpacity onPress={() => setSearchOpen(true)} className="p-2">
+            <Icon as={Search} size={24} className="text-foreground" />
+          </TouchableOpacity>
         </Animated.View>
 
         <View className="gap-5">
@@ -174,6 +179,7 @@ export default function HomeScreen() {
         </View>
         <View className="h-10" />
       </ScrollView>
+      <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }
