@@ -302,7 +302,7 @@ export default function LedgerScreen() {
           className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
           style={{ paddingBottom: insets.bottom + 6 }}>
           {/* Edit Button */}
-          {isSelectionMode && selectedIds.size === 1 && (
+          {isSelectionMode && selectedIds.size === 1 ? (
             <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -318,10 +318,12 @@ export default function LedgerScreen() {
                 <Icon as={Pencil} size={24} className="text-white dark:text-black" />
               </TouchableOpacity>
             </Animated.View>
+          ) : (
+            <View className="h-14 w-14" />
           )}
 
-          {/* Add Button */}
-          {!isSelectionMode && (
+          {/* Add/Delete Buttons */}
+          {!isSelectionMode ? (
             <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -330,10 +332,7 @@ export default function LedgerScreen() {
                 <Icon as={Plus} size={28} className="text-white dark:text-black" />
               </TouchableOpacity>
             </Animated.View>
-          )}
-
-          {/* Delete Button */}
-          {isSelectionMode && selectedIds.size > 0 && (
+          ) : (
             <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
               <AlertDialog>
                 <AlertDialogTrigger asChild>

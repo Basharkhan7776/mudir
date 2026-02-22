@@ -19,7 +19,16 @@ import {
 } from '@/lib/store/slices/ledgerSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { ArrowLeft, Printer, MoreVertical, Edit, Trash2 } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Printer,
+  MoreVertical,
+  Edit,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Plus,
+} from 'lucide-react-native';
 import React, { useState, useMemo, useRef } from 'react';
 import {
   FlatList,
@@ -29,6 +38,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useColorScheme } from 'nativewind';
@@ -70,7 +80,9 @@ export default function PartyScreen() {
 
   // Dialogs
   const [isEditingOrg, setIsEditingOrg] = useState(false);
+  const [addEntryModalOpen, setAddEntryModalOpen] = useState(false);
   const [editedOrgName, setEditedOrgName] = useState(entry?.organization?.name ?? '');
+  const [editedOrgPhone, setEditedOrgPhone] = useState(entry?.organization?.phone ?? '');
   const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
@@ -177,6 +189,7 @@ export default function PartyScreen() {
       );
       setAmount('');
       setDescription('');
+      setAddEntryModalOpen(false);
       // Scroll to bottom
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
@@ -193,7 +206,10 @@ export default function PartyScreen() {
     dispatch(
       updateOrganization({
         organizationId: partyId,
-        updates: { name: editedOrgName.trim() },
+        updates: {
+          name: editedOrgName.trim(),
+          phone: editedOrgPhone.trim() || undefined,
+        },
       })
     );
     setIsEditingOrg(false);
@@ -221,215 +237,252 @@ export default function PartyScreen() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-1 bg-background pt-12">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-          className="flex-1">
-          {/* Header */}
-          <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">
-            <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
-              <Icon as={ArrowLeft} size={24} className="text-foreground" />
-            </Button>
-            <View className="items-center">
-              <Text className="text-lg font-bold text-foreground">{entry.organization.name}</Text>
-              <Text className="mt-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                Net Balance
+        {/* Header */}
+        <View className="z-10 flex-row items-center justify-between border-b border-border bg-card px-5 pb-6">
+          <Button variant="ghost" size="icon" onPress={() => router.back()} className="-ml-2">
+            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+          </Button>
+          <View className="items-center">
+            <Text className="text-lg font-bold text-foreground">{entry.organization.name}</Text>
+            <Text className="mt-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              Net Balance
+            </Text>
+            <Text className="mt-1 text-3xl font-black text-foreground">
+              {currencySymbol}{' '}
+              {Math.abs(netBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </Text>
+            <View
+              className={`mt-1 rounded-full px-2 py-0.5 ${netBalance > 0 ? 'bg-green-100 dark:bg-green-900' : netBalance < 0 ? 'bg-red-100 dark:bg-red-900' : 'bg-gray-100'}`}>
+              <Text
+                className={`text-[10px] font-bold ${netBalance > 0 ? 'text-green-700 dark:text-green-300' : netBalance < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-500'}`}>
+                {netBalance > 0 ? 'YOU WILL GET' : netBalance < 0 ? 'YOU WILL GIVE' : 'SETTLED'}
               </Text>
-              <Text className="mt-1 text-3xl font-black text-foreground">
-                {currencySymbol}{' '}
-                {Math.abs(netBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </Text>
-              <View
-                className={`mt-1 rounded-full px-2 py-0.5 ${netBalance > 0 ? 'bg-green-100 dark:bg-green-900' : netBalance < 0 ? 'bg-red-100 dark:bg-red-900' : 'bg-gray-100'}`}>
-                <Text
-                  className={`text-[10px] font-bold ${netBalance > 0 ? 'text-green-700 dark:text-green-300' : netBalance < 0 ? 'text-red-700 dark:text-red-300' : 'text-gray-500'}`}>
-                  {netBalance > 0 ? 'YOU WILL GET' : netBalance < 0 ? 'YOU WILL GIVE' : 'SETTLED'}
-                </Text>
-              </View>
             </View>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  {isPrintingPDF ? (
-                    <ActivityIndicator size="small" />
-                  ) : (
-                    <Icon as={MoreVertical} size={24} className="text-foreground" />
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onPress={handlePrintPDF}>
-                  <Icon as={Printer} size={16} className="mr-2 text-foreground" />
-                  <Text>Save PDF</Text>
-                </DropdownMenuItem>
-                <DropdownMenuItem onPress={() => setIsEditingOrg(true)}>
-                  <Icon as={Edit} size={16} className="mr-2 text-foreground" />
-                  <Text>Edit Name</Text>
-                </DropdownMenuItem>
-                {isSelectionMode && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onPress={handleDeleteSelected}>
-                      <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
-                      <Text className="text-destructive">Delete Selected ({selectedIds.size})</Text>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </View>
 
-          {/* Content */}
-          <FlatList
-            className="flex-1"
-            ref={flatListRef}
-            data={flatListData}
-            keyExtractor={(item) => item.id}
-            contentContainerClassName="p-4 pb-24"
-            contentContainerStyle={{ flexGrow: 1 }}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            renderItem={({ item }) => {
-              if (item.type === 'header') {
-                return (
-                  <View className="my-4 items-center">
-                    <View className="rounded-full bg-muted px-3 py-1">
-                      <Text className="text-xs font-semibold text-muted-foreground">
-                        {item.title}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              }
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                {isPrintingPDF ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <Icon as={MoreVertical} size={24} className="text-foreground" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onPress={handlePrintPDF}>
+                <Icon as={Printer} size={16} className="mr-2 text-foreground" />
+                <Text>Save PDF</Text>
+              </DropdownMenuItem>
+              <DropdownMenuItem onPress={() => setIsEditingOrg(true)}>
+                <Icon as={Edit} size={16} className="mr-2 text-foreground" />
+                <Text>Edit Name</Text>
+              </DropdownMenuItem>
+              {isSelectionMode && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onPress={handleDeleteSelected}>
+                    <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
+                    <Text className="text-destructive">Delete Selected ({selectedIds.size})</Text>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </View>
 
-              // Transaction Item (DEBIT = LEFT/Received?, CREDIT = RIGHT/Paid?)
-              // Logic check:
-              // DEBIT usually means "You Gave" in this app context (from previous code: You Took (Debit)).
-              // Wait, "You Took (Debit)" means I owe them (Liability).
-              // "You Gave (Credit)" means they owe me (Asset).
-              // Let's align with the mockup:
-              // Left side: Light Gray bubble. Right side: Black bubble.
-              // Usually Right side is "Me" (User). Left side is "Them".
-
-              // Let's assume:
-              // CREDIT (You Gave) -> Asset -> Right Side (Black Bubble)
-              // DEBIT (You Took) -> Liability -> Left Side (Gray Bubble)
-
-              const isCredit = item.type === 'CREDIT';
-              const isSelected = selectedIds.has(item.id);
-
+        {/* Content */}
+        <FlatList
+          className="flex-1"
+          ref={flatListRef}
+          data={flatListData}
+          keyExtractor={(item) => item.id}
+          contentContainerClassName="p-4 pb-24"
+          contentContainerStyle={{ flexGrow: 1 }}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          renderItem={({ item }) => {
+            if (item.type === 'header') {
               return (
-                <Animated.View
-                  entering={FadeInUp.duration(300)}
-                  className={`mb-3 flex-row ${isCredit ? 'justify-end' : 'justify-start'}`}>
-                  <Pressable
-                    onLongPress={() => handleLongPressTx(item.id)}
-                    onPress={() => handlePressTx(item.id)}
-                    delayLongPress={200}
-                    className={`max-w-[80%] px-5 py-3 shadow-sm ${
-                      isSelected
-                        ? 'border-2 border-blue-500 bg-blue-100 dark:bg-blue-900' // Selection Style
-                        : isCredit
-                          ? 'rounded-[28px] rounded-tr-none bg-black'
-                          : 'rounded-[28px] rounded-tl-none bg-gray-100'
-                    } ${
-                      // Keep shape even when selected? Or just color.
-                      // Let's keep shape logic for aesthetics but override color.
-                      // Actually, simpler to just override the bg class if selected.
-                      isSelected
-                        ? isCredit
-                          ? 'rounded-[28px] rounded-tr-none'
-                          : 'rounded-[28px] rounded-tl-none'
-                        : ''
-                    }`}>
-                    {item.remark ? (
-                      <Text
-                        className={`mb-0.5 text-[10px] font-bold uppercase tracking-wider opacity-60 ${
-                          isSelected
-                            ? 'text-blue-800 dark:text-blue-100'
-                            : isCredit
-                              ? 'text-white'
-                              : 'text-black'
-                        }`}>
-                        {item.remark}
-                      </Text>
-                    ) : null}
+                <View className="my-4 items-center">
+                  <View className="rounded-full bg-muted px-3 py-1">
+                    <Text className="text-xs font-semibold text-muted-foreground">
+                      {item.title}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
+
+            // Transaction Item (DEBIT = LEFT/Received?, CREDIT = RIGHT/Paid?)
+            // Logic check:
+            // DEBIT usually means "You Gave" in this app context (from previous code: You Took (Debit)).
+            // Wait, "You Took (Debit)" means I owe them (Liability).
+            // "You Gave (Credit)" means they owe me (Asset).
+            // Let's align with the mockup:
+            // Left side: Light Gray bubble. Right side: Black bubble.
+            // Usually Right side is "Me" (User). Left side is "Them".
+
+            // Let's assume:
+            // CREDIT (You Gave) -> Asset -> Right Side (Black Bubble)
+            // DEBIT (You Took) -> Liability -> Left Side (Gray Bubble)
+
+            const isCredit = item.type === 'CREDIT';
+            const isSelected = selectedIds.has(item.id);
+
+            return (
+              <Animated.View
+                entering={FadeInUp.duration(300)}
+                className={`mb-3 flex-row ${isCredit ? 'justify-end' : 'justify-start'}`}>
+                <Pressable
+                  onLongPress={() => handleLongPressTx(item.id)}
+                  onPress={() => handlePressTx(item.id)}
+                  delayLongPress={200}
+                  className={`max-w-[80%] px-5 py-3 shadow-sm ${
+                    isSelected
+                      ? 'border-2 border-blue-500 bg-blue-100 dark:bg-blue-900' // Selection Style
+                      : isCredit
+                        ? 'rounded-[28px] rounded-tr-none bg-black'
+                        : 'rounded-[28px] rounded-tl-none bg-gray-100'
+                  } ${
+                    // Keep shape even when selected? Or just color.
+                    // Let's keep shape logic for aesthetics but override color.
+                    // Actually, simpler to just override the bg class if selected.
+                    isSelected
+                      ? isCredit
+                        ? 'rounded-[28px] rounded-tr-none'
+                        : 'rounded-[28px] rounded-tl-none'
+                      : ''
+                  }`}>
+                  {item.remark ? (
                     <Text
-                      className={`text-2xl font-black ${
+                      className={`mb-0.5 text-[10px] font-bold uppercase tracking-wider opacity-60 ${
                         isSelected
-                          ? 'text-blue-900 dark:text-white'
+                          ? 'text-blue-800 dark:text-blue-100'
                           : isCredit
                             ? 'text-white'
                             : 'text-black'
                       }`}>
-                      {isCredit ? '+' : '-'} {currencySymbol}
-                      {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {item.remark}
                     </Text>
-                  </Pressable>
-                </Animated.View>
-              );
-            }}
-          />
-
-          {/* Footer Input Area */}
-          <View className="border-t border-border bg-card p-4 pb-4">
-            <View className="mb-4 flex-row gap-4">
-              {/* Amount Input */}
-              <View className="flex-[1.2] justify-center rounded-2xl bg-muted px-4 py-3">
-                <Text className="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground opacity-70">
-                  AMOUNT
-                </Text>
-                <View className="flex-row items-center">
-                  <Text className="mr-1 text-lg font-bold text-muted-foreground">
-                    {currencySymbol}
+                  ) : null}
+                  <Text
+                    className={`text-2xl font-black ${
+                      isSelected
+                        ? 'text-blue-900 dark:text-white'
+                        : isCredit
+                          ? 'text-white'
+                          : 'text-black'
+                    }`}>
+                    {isCredit ? '+' : '-'} {currencySymbol}
+                    {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </Text>
+                </Pressable>
+              </Animated.View>
+            );
+          }}
+        />
+
+        {/* Add Entry Button */}
+        <Animated.View
+          entering={FadeInDown.delay(500)}
+          className="absolute bottom-0 left-0 right-0 px-6 pb-6">
+          <Pressable
+            onPress={() => setAddEntryModalOpen(true)}
+            className="h-14 flex-row items-center justify-center gap-2 rounded-full bg-black shadow-lg dark:bg-white">
+            <Icon as={Plus} size={24} className="text-white dark:text-black" />
+            <Text className="text-lg font-bold text-white dark:text-black">Add Entry</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* Add Entry Modal */}
+        <Modal
+          visible={addEntryModalOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setAddEntryModalOpen(false)}>
+          <View className="flex-1 justify-end bg-black/50">
+            <Pressable className="absolute inset-0" onPress={() => setAddEntryModalOpen(false)} />
+            <KeyboardAvoidingView behavior="padding">
+              <View className="rounded-t-3xl bg-card p-6 pb-10">
+                {/* Send/Receive Buttons */}
+                <View className="mb-6 flex-row gap-4">
+                  <Pressable
+                    onPress={() => handleTransaction('DEBIT')}
+                    className="h-14 flex-1 flex-row items-center justify-center gap-2 rounded-full border border-border bg-white shadow-sm active:scale-95">
+                    <Icon as={ArrowUpRight} size={20} className="text-black" />
+                    <Text className="text-lg font-bold text-black">SEND</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleTransaction('CREDIT')}
+                    className="h-14 flex-1 flex-row items-center justify-center gap-2 rounded-full bg-black shadow-sm active:scale-95">
+                    <Icon as={ArrowDownLeft} size={20} className="text-white" />
+                    <Text className="text-lg font-bold text-white">RECEIVE</Text>
+                  </Pressable>
+                </View>
+
+                {/* Amount Input */}
+                <View className="mb-4 justify-center rounded-2xl bg-muted px-4 py-3">
+                  <Text className="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground opacity-70">
+                    AMOUNT
+                  </Text>
+                  <View className="flex-row items-center">
+                    <Text className="mr-1 text-lg font-bold text-muted-foreground">
+                      {currencySymbol}
+                    </Text>
+                    <Input
+                      className="h-8 flex-1 border-0 bg-transparent p-0 text-xl font-bold leading-tight"
+                      placeholder="0.00"
+                      keyboardType="numeric"
+                      value={amount}
+                      onChangeText={setAmount}
+                    />
+                  </View>
+                </View>
+
+                {/* Description Input */}
+                <View className="mb-4 justify-center rounded-2xl bg-muted px-4 py-3">
                   <Input
-                    className="h-8 flex-1 border-0 bg-transparent p-0 text-xl font-bold leading-tight"
-                    placeholder="0.00"
-                    keyboardType="numeric"
-                    value={amount}
-                    onChangeText={setAmount}
+                    className="h-14 border-0 bg-transparent p-0 text-base leading-tight"
+                    placeholder="Add description..."
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    textAlignVertical="center"
                   />
                 </View>
               </View>
-
-              {/* Description Input */}
-              <View className="flex-[1.8] justify-center rounded-2xl bg-muted px-4 py-3">
-                <Input
-                  className="h-14 border-0 bg-transparent p-0 text-base leading-tight"
-                  placeholder="Add description..."
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                  textAlignVertical="center"
-                />
-              </View>
-            </View>
-
-            {/* Action Buttons */}
-            <View className="h-14 flex-row gap-4">
-              <Pressable
-                onPress={() => handleTransaction('DEBIT')}
-                className="flex-1 items-center justify-center rounded-full border border-border bg-white shadow-sm active:scale-95">
-                <Text className="text-lg font-bold text-black">DEBIT (-)</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleTransaction('CREDIT')}
-                className="flex-1 items-center justify-center rounded-full bg-black shadow-sm active:scale-95">
-                <Text className="text-lg font-bold text-white">CREDIT (+)</Text>
-              </Pressable>
-            </View>
+            </KeyboardAvoidingView>
           </View>
-        </KeyboardAvoidingView>
+        </Modal>
 
         {/* Edit Organization Dialog */}
         <Dialog open={isEditingOrg} onOpenChange={setIsEditingOrg}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Name</DialogTitle>
+              <DialogTitle>Edit Organization</DialogTitle>
             </DialogHeader>
-            <Input value={editedOrgName} onChangeText={setEditedOrgName} />
+            <View className="gap-4 py-4">
+              <View className="gap-2">
+                <Text className="text-sm font-medium">Name</Text>
+                <Input
+                  value={editedOrgName}
+                  onChangeText={setEditedOrgName}
+                  placeholder="Organization Name"
+                />
+              </View>
+              <View className="gap-2">
+                <Text className="text-sm font-medium">Phone</Text>
+                <Input
+                  value={editedOrgPhone}
+                  onChangeText={setEditedOrgPhone}
+                  placeholder="Phone Number"
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
             <DialogFooter>
               <Button onPress={handleSaveOrganization}>
                 <Text>Save</Text>

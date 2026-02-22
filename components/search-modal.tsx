@@ -190,7 +190,7 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps): React.Rea
           <View className="flex-row items-center gap-3 border-b border-border p-4">
             <Icon as={Search} size={22} className="text-muted-foreground" />
             <Input
-              className="flex-1 border-0 bg-transparent p-0 text-base text-foreground placeholder:text-muted-foreground"
+              className="flex-1 border-0 bg-transparent px-1 py-0 text-base text-foreground placeholder:text-muted-foreground"
               placeholder="Search collections, items, organizations..."
               value={query}
               onChangeText={setQuery}
