@@ -16,7 +16,7 @@ Mudir is a mobile-first application engineered for efficient business management
 
 ## Download
 
-<a href="https://expo.dev/accounts/bashar_khan/projects/Mudir/builds/58da1537-ddc9-482a-8744-952a87ed90f6">
+<a https://mudir.basharkhan.in/Mudir-beta.apk">
   <img src="https://img.shields.io/badge/Download-Android_App-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Android App" />
 </a>
 
