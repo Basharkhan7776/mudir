@@ -2,26 +2,44 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { Link, Stack, useRouter } from 'expo-router';
-import { ArrowRight, Box, CreditCard, Search, Settings } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Platform, ScrollView, View, TouchableOpacity } from 'react-native';
+import {
+  ArrowRight,
+  Box,
+  CreditCard,
+  Search,
+  Settings,
+  Cloud,
+  RefreshCw,
+} from 'lucide-react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Platform, ScrollView, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
 import { Icon } from '@/components/ui/icon';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/lib/store';
-import { completeOnboarding } from '@/lib/store/slices/settingsSlice';
+import { completeOnboarding, setSettings } from '@/lib/store/slices/settingsSlice';
+import { setCollections } from '@/lib/store/slices/inventorySlice';
+import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { SearchModal } from '@/components/search-modal';
+import { initializeFirebase, onAuthChange, syncData, environment } from '@/lib/firebase';
+import { setUser, setLastSync } from '@/lib/store/slices/authSlice';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncRef = useRef(false);
+
   const isNewUser = useSelector((state: RootState) => state.settings.isNewUser);
+  const settings = useSelector((state: RootState) => state.settings);
   const collections = useSelector((state: RootState) => state.inventory.collections);
   const ledgerEntries = useSelector((state: RootState) => state.ledger.entries);
   const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
+  const auth = useSelector((state: RootState) => state.auth);
 
   const totalItems = collections.reduce((acc, c) => acc + c.data.length, 0);
   const totalLedgerBalance = ledgerEntries.reduce((acc, entry) => {
@@ -34,12 +52,67 @@ export default function HomeScreen() {
     );
   }, 0);
 
-  // Silently complete onboarding
   React.useEffect(() => {
     if (isNewUser) {
       dispatch(completeOnboarding());
     }
   }, [isNewUser]);
+
+  const performAutoSync = async () => {
+    if (!auth.isLoggedIn || syncRef.current) {
+      return;
+    }
+
+    syncRef.current = true;
+    setIsSyncing(true);
+
+    try {
+      const localData = {
+        meta: {
+          appVersion: settings.appVersion,
+          exportDate: settings.exportDate || new Date().toISOString(),
+          userCurrency: settings.userCurrency,
+          organizationName: settings.organizationName,
+          isNewUser: settings.isNewUser,
+        },
+        collections: collections,
+        ledger: ledgerEntries,
+      };
+
+      const result = await syncData(localData);
+
+      if (result.success && result.action === 'pulled' && result.data) {
+        dispatch(setSettings(result.data.meta));
+        dispatch(setCollections(result.data.collections));
+        dispatch(setLedger(result.data.ledger));
+      }
+
+      if (result.success) {
+        dispatch(setLastSync(new Date().toISOString()));
+      }
+    } catch (error) {
+      console.error('[Home] Auto-sync error:', error);
+    } finally {
+      setIsSyncing(false);
+      syncRef.current = false;
+    }
+  };
+
+  React.useEffect(() => {
+    initializeFirebase();
+
+    const unsubscribe = onAuthChange((user) => {
+      dispatch(setUser(user));
+    });
+
+    return () => unsubscribe();
+  }, [dispatch]);
+
+  React.useEffect(() => {
+    if (auth.isLoggedIn && !isSyncing) {
+      performAutoSync();
+    }
+  }, [auth.isLoggedIn]);
 
   const formatBalance = (amount: number) => {
     if (Math.abs(amount) >= 1000) {
@@ -58,10 +131,24 @@ export default function HomeScreen() {
         <Animated.View
           className="mb-2 flex-row items-center justify-between py-2"
           entering={Platform.OS !== 'web' ? FadeInUp.duration(400).damping(30) : undefined}>
-          <Text className="text-4xl font-black tracking-tight text-foreground">Mudir</Text>
-          <TouchableOpacity onPress={() => setSearchOpen(true)} className="p-2">
-            <Icon as={Search} size={24} className="text-foreground" />
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-4xl font-black tracking-tight text-foreground">Mudir</Text>
+            {auth.isLoggedIn && (
+              <TouchableOpacity onPress={performAutoSync} disabled={isSyncing}>
+                {isSyncing ? (
+                  <ActivityIndicator size={20} className="text-blue-500" />
+                ) : (
+                  <Icon as={Cloud} size={20} className="text-green-500" />
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+          <View className="flex-row items-center gap-2">
+            {isSyncing && <ActivityIndicator size={16} className="text-muted-foreground" />}
+            <TouchableOpacity onPress={() => setSearchOpen(true)} className="p-2">
+              <Icon as={Search} size={24} className="text-foreground" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         <View className="gap-5">

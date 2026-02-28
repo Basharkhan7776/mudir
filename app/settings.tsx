@@ -31,10 +31,14 @@ import {
   Store,
   Trash2,
   ArrowLeft,
+  Cloud,
+  CloudOff,
+  RefreshCw,
+  LogOut,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useState } from 'react';
-import { ScrollView, View, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { ScrollView, View, Alert, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
 import {
@@ -47,6 +51,16 @@ import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { exportData, importData } from '@/lib/utils/export-import';
 import { Icon } from '@/components/ui/icon';
 import { seedDatabase, clearDatabase, getSeedData } from '@/lib/seed';
+import {
+  initializeFirebase,
+  signInWithGoogle,
+  signOutGoogle,
+  onAuthChange,
+  syncData,
+  checkSyncStatus,
+  environment,
+} from '@/lib/firebase';
+import { setUser, setLastSync, setIsSyncing, logout } from '@/lib/store/slices/authSlice';
 
 const CURRENCIES = [
   { value: '₹', label: 'Indian Rupee (INR)' },
@@ -63,10 +77,120 @@ export default function SettingsScreen() {
   const settings = useSelector((state: RootState) => state.settings);
   const inventory = useSelector((state: RootState) => state.inventory);
   const ledger = useSelector((state: RootState) => state.ledger);
+  const auth = useSelector((state: RootState) => state.auth);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSyncing, setIsSyncingLocal] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ lastSync: string | null; hasData: boolean }>({
+    lastSync: null,
+    hasData: false,
+  });
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    initializeFirebase();
+    const unsubscribe = onAuthChange((user) => {
+      dispatch(setUser(user));
+      if (user) {
+        checkSyncStatus().then((status) => {
+          setSyncStatus({
+            lastSync: status.lastSync,
+            hasData: status.hasData,
+          });
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, [dispatch]);
+
+  const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        dispatch(setUser(user));
+        setSuccessMessage(`Welcome, ${user.displayName || 'User'}!`);
+        setSuccessDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('[Settings] Google login error:', error);
+      Alert.alert('Login Failed', 'Could not sign in with Google');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOutGoogle();
+          dispatch(logout());
+          setSyncStatus({ lastSync: null, hasData: false });
+        },
+      },
+    ]);
+  };
+
+  const handleSync = async () => {
+    if (!auth.isLoggedIn) {
+      Alert.alert('Not Signed In', 'Please sign in with Google to sync data');
+      return;
+    }
+
+    setIsSyncingLocal(true);
+    dispatch(setIsSyncing(true));
+
+    try {
+      const localData = {
+        meta: {
+          appVersion: settings.appVersion,
+          exportDate: settings.exportDate || new Date().toISOString(),
+          userCurrency: settings.userCurrency,
+          organizationName: settings.organizationName,
+          isNewUser: settings.isNewUser,
+        },
+        collections: inventory.collections,
+        ledger: ledger.entries,
+      };
+
+      const result = await syncData(localData);
+
+      if (result.success) {
+        if (result.action === 'pulled' && result.data) {
+          dispatch(setSettings(result.data.meta));
+          dispatch(setCollections(result.data.collections));
+          dispatch(setLedger(result.data.ledger));
+          setSuccessMessage('Data synced from cloud');
+        } else if (result.action === 'pushed') {
+          setSuccessMessage('Data synced to cloud');
+        } else {
+          setSuccessMessage(result.message);
+        }
+        setSuccessDialogOpen(true);
+
+        const status = await checkSyncStatus();
+        setSyncStatus({
+          lastSync: status.lastSync,
+          hasData: status.hasData,
+        });
+        dispatch(setLastSync(status.lastSync));
+      } else {
+        Alert.alert('Sync Failed', result.message);
+      }
+    } catch (error) {
+      console.error('[Settings] Sync error:', error);
+      Alert.alert('Sync Failed', 'An error occurred while syncing data');
+    } finally {
+      setIsSyncingLocal(false);
+      dispatch(setIsSyncing(false));
+    }
+  };
 
   const handleExport = async () => {
     console.log('[Settings] Starting export...');
@@ -322,6 +446,97 @@ export default function SettingsScreen() {
                   <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
                 </View>
               </Button>
+            </View>
+          </View>
+
+          {/* Cloud Sync */}
+          <View className="gap-4">
+            <Text className="ml-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Cloud Sync {environment.isDevelopment ? '(Dev)' : ''}
+            </Text>
+            <View className="overflow-hidden rounded-2xl border border-border bg-card">
+              {auth.isLoggedIn ? (
+                <>
+                  <View className="flex-row items-center gap-3 p-4">
+                    <View className="h-8 w-8 items-center justify-center rounded-full bg-green-500">
+                      <Icon as={Cloud} size={18} className="text-white" />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="font-semibold text-foreground">
+                        {auth.user?.displayName || 'Signed In'}
+                      </Text>
+                      <Text className="text-xs text-muted-foreground">{auth.user?.email}</Text>
+                    </View>
+                  </View>
+
+                  {syncStatus.lastSync && (
+                    <View className="border-t border-border px-4 py-2">
+                      <Text className="text-xs text-muted-foreground">
+                        Last synced: {new Date(syncStatus.lastSync).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full flex-col items-stretch justify-start p-0"
+                    onPress={handleSync}
+                    disabled={isSyncing}>
+                    <View className="w-full flex-row items-center justify-between p-4">
+                      <View className="flex-row items-center gap-3">
+                        <View className="h-8 w-8 items-center justify-center rounded-full bg-blue-500">
+                          {isSyncing ? (
+                            <ActivityIndicator size={18} color="white" />
+                          ) : (
+                            <Icon as={RefreshCw} size={18} className="text-white" />
+                          )}
+                        </View>
+                        <Text className="font-semibold text-foreground">
+                          {isSyncing ? 'Syncing...' : 'Sync Data'}
+                        </Text>
+                      </View>
+                      <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
+                    </View>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full flex-col items-stretch justify-start p-0"
+                    onPress={handleLogout}>
+                    <View className="w-full flex-row items-center justify-between p-4">
+                      <View className="flex-row items-center gap-3">
+                        <View className="h-8 w-8 items-center justify-center rounded-full bg-red-500">
+                          <Icon as={LogOut} size={18} className="text-white" />
+                        </View>
+                        <Text className="font-semibold text-foreground">Sign Out</Text>
+                      </View>
+                      <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
+                    </View>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="h-auto w-full flex-col items-stretch justify-start p-0"
+                  onPress={handleGoogleLogin}
+                  disabled={isLoggingIn}>
+                  <View className="w-full flex-row items-center justify-between p-4">
+                    <View className="flex-row items-center gap-3">
+                      <View className="h-8 w-8 items-center justify-center rounded-full bg-gray-500">
+                        {isLoggingIn ? (
+                          <ActivityIndicator size={18} color="white" />
+                        ) : (
+                          <Icon as={CloudOff} size={18} className="text-white" />
+                        )}
+                      </View>
+                      <Text className="font-semibold text-foreground">
+                        {isLoggingIn ? 'Signing in...' : 'Sign in with Google'}
+                      </Text>
+                    </View>
+                    <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
+                  </View>
+                </Button>
+              )}
             </View>
           </View>
         </ScrollView>
