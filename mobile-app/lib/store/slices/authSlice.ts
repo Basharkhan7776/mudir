@@ -3,10 +3,10 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface AuthState {
   isLoggedIn: boolean;
   user: {
-    uid: string;
+    id: string;
     email: string | null;
-    displayName: string | null;
-    photoURL: string | null;
+    name: string | null;
+    image: string | null;
   } | null;
   lastSync: string | null;
   isSyncing: boolean;
