@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///home/bashar-khan/projects/Mudir/web/app/layout.tsx"],"sourcesContent":["import \"./globals.css\";\n\nexport default function RootLayout({\n  children,\n}: Readonly<{\n  children: React.ReactNode;\n}>) {\n  return (\n    <html lang=\"en\">\n      <body className=\"antialiased\">{children}</body>\n    </html>\n  );\n}\n"],"names":[],"mappings":";;;;;;;AAEe,SAAS,WAAW,EACjC,QAAQ,EAGR;IACA,qBACE,0QAAC;QAAK,MAAK;kBACT,cAAA,0QAAC;YAAK,WAAU;sBAAe;;;;;;;;;;;AAGrC"}},
+    {"offset": {"line": 32, "column": 0}, "map": {"version":3,"sources":["file:///home/bashar-khan/projects/Mudir/web/node_modules/next/src/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.ts"],"sourcesContent":["module.exports = (\n  require('../../module.compiled') as typeof import('../../module.compiled')\n).vendored['react-rsc']!.ReactJsxDevRuntime\n"],"names":["module","exports","require","vendored","ReactJsxDevRuntime"],"mappings":"AAAAA,OAAOC,OAAO,GACZC,QAAQ,+IACRC,QAAQ,CAAC,YAAY,CAAEC,kBAAkB","ignoreList":[0]}}]
+}
