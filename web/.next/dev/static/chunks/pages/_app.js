@@ -1,0 +1,13 @@
+__turbopack_load_page_chunks__("/_app", [
+  "static/chunks/c39ae_next_dist_compiled_6f57542a._.js",
+  "static/chunks/c39ae_next_dist_shared_lib_1343f154._.js",
+  "static/chunks/c39ae_next_dist_client_7417ac5a._.js",
+  "static/chunks/c39ae_next_dist_e5034430._.js",
+  "static/chunks/c39ae_next_app_0f093f8b.js",
+  "static/chunks/[next]_entry_page-loader_ts_a0f1e90f._.js",
+  "static/chunks/c39ae_react-dom_34bb8f29._.js",
+  "static/chunks/c39ae_5510c26a._.js",
+  "static/chunks/[root-of-the-server]__46216e0a._.js",
+  "static/chunks/projects_Mudir_web_pages__app_2da965e7._.js",
+  "static/chunks/turbopack-projects_Mudir_web_pages__app_22ec906e._.js"
+])
