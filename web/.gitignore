@@ -17,6 +17,10 @@
 .DS_Store
 *.pem
 
+# Large files
+*.apk
+*.aab
+
 # debug
 npm-debug.log*
 yarn-debug.log*
