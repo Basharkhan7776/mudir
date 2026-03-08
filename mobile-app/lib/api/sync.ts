@@ -2,11 +2,28 @@ import Constants from 'expo-constants';
 import { getAuthToken } from './auth';
 import { DatabaseSchema } from '@/lib/types';
 
+const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
+
 const getEnvVars = () => {
   const extra = Constants.expoConfig?.extra || {};
   return {
     apiUrl: extra.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   };
+};
+
+const getDataSize = (data: unknown): number => {
+  return JSON.stringify(data).length;
+};
+
+const isDataSizeValid = (data: unknown): boolean => {
+  const size = getDataSize(data);
+  return size <= MAX_DATA_SIZE_BYTES;
+};
+
+const formatBytes = (bytes: number): string => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 };
 
 export interface SyncMetadata {
@@ -59,6 +76,14 @@ export const getSyncStatus = async (): Promise<{
   }
 };
 
+export const checkSyncStatus = async (): Promise<{
+  hasData: boolean;
+  lastSync: string | null;
+  dataSize: number | null;
+}> => {
+  return getSyncStatus();
+};
+
 export const pullData = async (): Promise<SyncResult> => {
   try {
     const env = getEnvVars();
@@ -104,6 +129,14 @@ export const pushData = async (localData: DatabaseSchema, lastSync: string | nul
     
     if (!token) {
       return { success: false, message: 'Not authenticated' };
+    }
+    
+    if (!isDataSizeValid(localData)) {
+      const currentSize = getDataSize(localData);
+      return {
+        success: false,
+        message: `Data size (${formatBytes(currentSize)}) exceeds limit of ${formatBytes(MAX_DATA_SIZE_BYTES)}. Please reduce data before syncing.`,
+      };
     }
     
     const response = await fetch(`${env.apiUrl}/api/sync`, {
