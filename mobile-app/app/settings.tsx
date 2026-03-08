@@ -51,15 +51,7 @@ import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { exportData, importData } from '@/lib/utils/export-import';
 import { Icon } from '@/components/ui/icon';
 import { seedDatabase, clearDatabase, getSeedData } from '@/lib/seed';
-import {
-  initializeFirebase,
-  signInWithGoogle,
-  signOutGoogle,
-  onAuthChange,
-  syncData,
-  checkSyncStatus,
-  environment,
-} from '@/lib/firebase';
+import { onAuthChange, syncData, checkSyncStatus, environment, signInWithGoogle, signOut } from '@/lib/api';
 import { setUser, setLastSync, setIsSyncing, logout } from '@/lib/store/slices/authSlice';
 
 const CURRENCIES = [
@@ -90,7 +82,6 @@ export default function SettingsScreen() {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    initializeFirebase();
     const unsubscribe = onAuthChange((user) => {
       dispatch(setUser(user));
       if (user) {
@@ -111,7 +102,7 @@ export default function SettingsScreen() {
       const user = await signInWithGoogle();
       if (user) {
         dispatch(setUser(user));
-        setSuccessMessage(`Welcome, ${user.displayName || 'User'}!`);
+        setSuccessMessage(`Welcome, ${user.name || 'User'}!`);
         setSuccessDialogOpen(true);
       }
     } catch (error) {
@@ -129,7 +120,7 @@ export default function SettingsScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          await signOutGoogle();
+          await signOut();
           dispatch(logout());
           setSyncStatus({ lastSync: null, hasData: false });
         },
@@ -463,7 +454,7 @@ export default function SettingsScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="font-semibold text-foreground">
-                        {auth.user?.displayName || 'Signed In'}
+                        {auth.user?.name || 'Signed In'}
                       </Text>
                       <Text className="text-xs text-muted-foreground">{auth.user?.email}</Text>
                     </View>

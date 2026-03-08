@@ -23,7 +23,7 @@ import { completeOnboarding, setSettings } from '@/lib/store/slices/settingsSlic
 import { setCollections } from '@/lib/store/slices/inventorySlice';
 import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { SearchModal } from '@/components/search-modal';
-import { initializeFirebase, onAuthChange, syncData, environment } from '@/lib/firebase';
+import { onAuthChange, syncData, environment } from '@/lib/api';
 import { setUser, setLastSync } from '@/lib/store/slices/authSlice';
 
 export default function HomeScreen() {
@@ -99,8 +99,6 @@ export default function HomeScreen() {
   };
 
   React.useEffect(() => {
-    initializeFirebase();
-
     const unsubscribe = onAuthChange((user) => {
       dispatch(setUser(user));
     });

@@ -43,15 +43,9 @@
         "projectId": "3eae7575-5de0-4814-a2f6-03d3e4c1fdd6"
       },
       "ENVIRONMENT": "development",
-      "FIREBASE_API_KEY": "",
-      "FIREBASE_AUTH_DOMAIN": "",
-      "FIREBASE_PROJECT_ID": "",
-      "FIREBASE_STORAGE_BUCKET": "",
-      "FIREBASE_MESSAGING_SENDER_ID": "",
-      "FIREBASE_APP_ID": "",
-      "FIREBASE_DATABASE_URL": "",
       "GOOGLE_WEB_CLIENT_ID": "",
-      "GOOGLE_IOS_CLIENT_ID": ""
+      "GOOGLE_IOS_CLIENT_ID": "",
+      "NEXT_PUBLIC_API_URL": "http://localhost:3000"
     },
     "owner": "bashar_khan"
   }

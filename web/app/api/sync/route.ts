@@ -4,8 +4,20 @@ import { getDb } from '@/lib/auth';
 import { headers } from 'next/headers';
 import crypto from 'crypto';
 
+const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
+
 function calculateDataHash(data: unknown): string {
   return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex').slice(0, 16);
+}
+
+function getDataSize(data: unknown): number {
+  return JSON.stringify(data).length;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
 export async function GET(req: NextRequest) {
@@ -57,10 +69,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No data provided' }, { status: 400 });
     }
 
+    const dataSize = getDataSize(data);
+    if (dataSize > MAX_DATA_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          error: `Data size (${formatBytes(dataSize)}) exceeds limit of ${formatBytes(MAX_DATA_SIZE_BYTES)}. Please reduce data before syncing.`,
+        },
+        { status: 413 }
+      );
+    }
+
     const db = await getDb();
     const userId = session.user.id;
     const dataHash = calculateDataHash(data);
-    const dataSize = JSON.stringify(data).length;
     const now = new Date().toISOString();
 
     const existing = await db.collection('databases').findOne({ userId });
