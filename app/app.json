@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Mudir",
+    "slug": "Mudir",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo.png",
+    "scheme": "Mudir",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.mudir.app",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logo.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3eae7575-5de0-4814-a2f6-03d3e4c1fdd6"
+      },
+      "ENVIRONMENT": "development",
+      "GOOGLE_WEB_CLIENT_ID": "",
+      "GOOGLE_IOS_CLIENT_ID": "",
+      "NEXT_PUBLIC_API_URL": "http://localhost:3000"
+    },
+    "owner": "bashar_khan"
+  }
+}

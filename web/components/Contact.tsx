@@ -166,11 +166,11 @@ Message: ${formData.message}
         <span>
           Created by{" "}
           <a
-            href="https://basharkhan.in/"
+            href="https://basharkhan.com/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className="font-bold">basharkhan.in</span>
+            <span className="font-bold">basharkhan.com</span>
           </a>
         </span>
       </div>
