@@ -45,7 +45,7 @@
       "ENVIRONMENT": "development",
       "GOOGLE_WEB_CLIENT_ID": "",
       "GOOGLE_IOS_CLIENT_ID": "",
-      "NEXT_PUBLIC_API_URL": "http://localhost:3000"
+      "NEXT_PUBLIC_API_URL": "https://mudir.basharkhan.com"
     },
     "owner": "bashar_khan"
   }

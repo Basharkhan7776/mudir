@@ -1,11 +1,10 @@
-"use client";
 import React from "react";
-import { motion, Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import { Github, Apple, Play, Download } from "lucide-react";
 import { PhoneMockup } from "./PhoneMockup";
 
 export const Hero: React.FC = () => {
-  const containerVariants: Variants = {
+  const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -16,7 +15,7 @@ export const Hero: React.FC = () => {
     },
   };
 
-  const itemVariants: Variants = {
+  const itemVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
