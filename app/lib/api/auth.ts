@@ -27,8 +27,10 @@ export const signInWithGoogle = async (): Promise<AuthUser | null> => {
     const redirectUrl = Linking.createURL('auth-callback');
     
     const authUrl = `${env.apiUrl}/api/auth/signin/google?redirect_url=${encodeURIComponent(redirectUrl)}`;
+    console.log('[Auth] Opening URL:', authUrl);
     
     const result = await Linking.openURL(authUrl);
+    console.log('[Auth] Browser returned to app!');
 
     if (!result) {
       return null;
