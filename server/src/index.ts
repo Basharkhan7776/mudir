@@ -26,6 +26,13 @@ app.get("/api/auth/signin/google", async (req, res) => {
     });
     
     const baRes = await baReq.json();
+    
+    // Forward the cookies (especially the state cookie) from Better Auth to the browser
+    const setCookies = baReq.headers.getSetCookie();
+    if (setCookies && setCookies.length > 0) {
+      res.setHeader('Set-Cookie', setCookies);
+    }
+
     if (baRes.url) {
       res.redirect(baRes.url);
     } else {
