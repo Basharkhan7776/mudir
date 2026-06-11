@@ -7,7 +7,7 @@ const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
 const getEnvVars = () => {
   const extra = Constants.expoConfig?.extra || {};
   return {
-    apiUrl: extra.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+    apiUrl: process.env.EXPO_PUBLIC_SERVER_URL || extra.EXPO_PUBLIC_SERVER_URL || 'http://localhost:3000',
   };
 };
 
@@ -47,7 +47,7 @@ export const getSyncStatus = async (): Promise<{
 }> => {
   try {
     const env = getEnvVars();
-    const token = getAuthToken();
+    const token = await getAuthToken();
     
     if (!token) {
       return { hasData: false, lastSync: null, dataHash: null, dataSize: null };
@@ -87,7 +87,7 @@ export const checkSyncStatus = async (): Promise<{
 export const pullData = async (): Promise<SyncResult> => {
   try {
     const env = getEnvVars();
-    const token = getAuthToken();
+    const token = await getAuthToken();
     
     if (!token) {
       return { success: false, message: 'Not authenticated' };
@@ -125,7 +125,7 @@ export const pullData = async (): Promise<SyncResult> => {
 export const pushData = async (localData: DatabaseSchema, lastSync: string | null): Promise<SyncResult> => {
   try {
     const env = getEnvVars();
-    const token = getAuthToken();
+    const token = await getAuthToken();
     
     if (!token) {
       return { success: false, message: 'Not authenticated' };
@@ -178,7 +178,7 @@ export const pushData = async (localData: DatabaseSchema, lastSync: string | nul
 };
 
 export const syncData = async (localData: DatabaseSchema): Promise<SyncResult> => {
-  const token = getAuthToken();
+  const token = await getAuthToken();
   
   if (!token) {
     return { success: false, message: 'Not authenticated' };

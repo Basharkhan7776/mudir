@@ -1,10 +1,11 @@
 import * as Linking from 'expo-linking';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getEnvVars = () => {
   const extra = Constants.expoConfig?.extra || {};
   return {
-    apiUrl: extra.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+    apiUrl: process.env.EXPO_PUBLIC_SERVER_URL || extra.EXPO_PUBLIC_SERVER_URL || 'http://localhost:3000',
   };
 };
 
@@ -43,14 +44,14 @@ export const signInWithGoogle = async (): Promise<AuthUser | null> => {
 export const signOut = async (): Promise<boolean> => {
   try {
     const env = getEnvVars();
-    const token = localStorage.getItem('auth_token');
+    const token = await AsyncStorage.getItem('auth_token');
     
     await fetch(`${env.apiUrl}/api/auth/signout`, {
       method: 'POST',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {},
     });
     
-    localStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('auth_token');
     return true;
   } catch (error) {
     console.error('[Auth] Sign out error:', error);
@@ -61,7 +62,7 @@ export const signOut = async (): Promise<boolean> => {
 export const getSession = async (): Promise<Session | null> => {
   try {
     const env = getEnvVars();
-    const token = localStorage.getItem('auth_token');
+    const token = await AsyncStorage.getItem('auth_token');
     
     if (!token) {
       return null;
@@ -106,6 +107,6 @@ export const onAuthChange = (callback: (user: AuthUser | null) => void) => {
   return () => clearInterval(interval);
 };
 
-export const getAuthToken = (): string | null => {
-  return localStorage.getItem('auth_token');
+export const getAuthToken = async (): Promise<string | null> => {
+  return AsyncStorage.getItem('auth_token');
 };

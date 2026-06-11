@@ -43,9 +43,9 @@
         "projectId": "3eae7575-5de0-4814-a2f6-03d3e4c1fdd6"
       },
       "ENVIRONMENT": "development",
-      "GOOGLE_WEB_CLIENT_ID": "",
-      "GOOGLE_IOS_CLIENT_ID": "",
-      "NEXT_PUBLIC_API_URL": "https://mudir.basharkhan.com"
+      "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "",
+      "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+      "EXPO_PUBLIC_SERVER_URL": "https://apimudir.basharkhan.com"
     },
     "owner": "bashar_khan"
   }
