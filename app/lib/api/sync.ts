@@ -7,7 +7,7 @@ const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
 const getEnvVars = () => {
   const extra = Constants.expoConfig?.extra || {};
   return {
-    apiUrl: process.env.EXPO_PUBLIC_SERVER_URL || extra.EXPO_PUBLIC_SERVER_URL || 'http://localhost:3000',
+    apiUrl: process.env.EXPO_PUBLIC_SERVER_URL || extra.EXPO_PUBLIC_SERVER_URL || 'http://localhost:3001',
   };
 };
 

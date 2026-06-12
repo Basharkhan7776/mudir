@@ -37,8 +37,8 @@ import {
   LogOut,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { ScrollView, View, Alert, ActivityIndicator, AppState } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
 import {
@@ -81,6 +81,8 @@ export default function SettingsScreen() {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Re-check auth when the app returns to the foreground (e.g. after browser OAuth)
+  const appState = useRef(AppState.currentState);
   useEffect(() => {
     const unsubscribe = onAuthChange((user) => {
       dispatch(setUser(user));
@@ -93,18 +95,37 @@ export default function SettingsScreen() {
         });
       }
     });
-    return () => unsubscribe();
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App came to foreground — re-check auth (picks up token saved by deep link)
+        onAuthChange((user) => {
+          dispatch(setUser(user));
+          if (user) {
+            checkSyncStatus().then((status) => {
+              setSyncStatus({
+                lastSync: status.lastSync,
+                hasData: status.hasData,
+              });
+            });
+          }
+        });
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      unsubscribe();
+      subscription.remove();
+    };
   }, [dispatch]);
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
     try {
-      const user = await signInWithGoogle();
-      if (user) {
-        dispatch(setUser(user));
-        setSuccessMessage(`Welcome, ${user.name || 'User'}!`);
-        setSuccessDialogOpen(true);
-      }
+      await signInWithGoogle();
+      // Browser opens for OAuth. Token comes back via deep link (auth-callback.tsx).
+      // onAuthChange + AppState listener will pick up the session automatically.
     } catch (error) {
       console.error('[Settings] Google login error:', error);
       Alert.alert('Login Failed', 'Could not sign in with Google');
@@ -151,6 +172,7 @@ export default function SettingsScreen() {
       };
 
       const result = await syncData(localData);
+      console.log('[Settings] Sync result:', result);
 
       if (result.success) {
         if (result.action === 'pulled' && result.data) {

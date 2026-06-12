@@ -8,24 +8,24 @@ export default function AuthCallback() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('[Auth Callback] Deep link hit with params:', JSON.stringify(params, null, 2));
-
     const handleAuth = async () => {
-      // Check if our server forwarded the session token
+      console.log('[Auth Callback] Params:', JSON.stringify(params));
+
       if (params.token) {
-        console.log('[Auth Callback] Token found! Saving to AsyncStorage...');
-        await AsyncStorage.setItem('auth_token', params.token as string);
+        // Decode the URL-encoded token and save it
+        const token = decodeURIComponent(params.token as string);
+        console.log('[Auth Callback] Token received, saving...');
+        await AsyncStorage.setItem('auth_token', token);
       } else {
-        console.log('[Auth Callback] No token found in params!');
+        console.log('[Auth Callback] No token in params');
       }
-      
-      // Redirect back to home
-      console.log('[Auth Callback] Redirecting to home...');
+
+      // Navigate back to home — onAuthChange will pick up the new session
       router.replace('/');
     };
 
     handleAuth();
-  }, [params, router]);
+  }, []);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

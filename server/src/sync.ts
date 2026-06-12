@@ -20,6 +20,46 @@ function formatBytes(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
+// Lightweight status check — returns metadata without the full data payload
+router.get('/status', async (req, res) => {
+  try {
+    const session = await auth.api.getSession({
+      headers: req.headers as any,
+    });
+
+    if (!session?.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const db = await getDb();
+    const userDb = await db.collection('databases').findOne(
+      { userId: session.user.id },
+      { projection: { data: 0 } } // Exclude the large data field
+    );
+
+    if (!userDb) {
+      res.json({
+        hasData: false,
+        lastSync: null,
+        dataHash: null,
+        dataSize: null,
+      });
+      return;
+    }
+
+    res.json({
+      hasData: true,
+      lastSync: userDb.lastSync,
+      dataHash: userDb.dataHash,
+      dataSize: userDb.dataSize,
+    });
+  } catch (error) {
+    console.error('Sync status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const session = await auth.api.getSession({
