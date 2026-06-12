@@ -128,9 +128,8 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
-        contentContainerClassName="p-5 gap-6"
+        contentContainerClassName="p-5 gap-6 bg-background"
         style={{ paddingTop: insets.top }}
         showsVerticalScrollIndicator={false}>
         <Animated.View
