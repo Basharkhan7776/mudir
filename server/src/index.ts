@@ -64,6 +64,54 @@ app.get('/api/auth/mobile-callback', (req, res) => {
   }
 });
 
+// Custom get-session endpoint for mobile apps that use Bearer tokens
+// Better Auth's toNodeHandler only reads cookies, so we convert the Bearer token to a cookie header
+app.get('/api/auth/get-session', async (req, res) => {
+  try {
+    // Convert Bearer token to cookie so Better Auth can find the session
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      // Better Auth uses __Secure- prefix in production/HTTPS. We set both to be safe.
+      req.headers.cookie = `better-auth.session_token=${token}; __Secure-better-auth.session_token=${token}`;
+    }
+
+    const session = await auth.api.getSession({
+      headers: req.headers as any,
+    });
+
+    if (!session) {
+      res.json(null);
+      return;
+    }
+
+    res.json(session);
+  } catch (error) {
+    console.error('[Auth] get-session error:', error);
+    res.json(null);
+  }
+});
+
+// Custom sign-out endpoint for mobile apps
+app.post('/api/auth/sign-out', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      req.headers.cookie = `better-auth.session_token=${token}; __Secure-better-auth.session_token=${token}`;
+    }
+
+    await auth.api.signOut({
+      headers: req.headers as any,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Auth] sign-out error:', error);
+    res.json({ success: true });
+  }
+});
+
 // Mount better-auth handler for all other /api/auth/* routes
 app.all(/^\/api\/auth/, toNodeHandler(auth));
 

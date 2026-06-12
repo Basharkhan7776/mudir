@@ -4,6 +4,16 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+// Convert Bearer token to cookie for Better Auth compatibility
+router.use((req, _res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    req.headers.cookie = `better-auth.session_token=${token}; __Secure-better-auth.session_token=${token}`;
+  }
+  next();
+});
+
 const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
 
 function calculateDataHash(data: unknown): string {
