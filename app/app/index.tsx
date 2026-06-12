@@ -12,7 +12,14 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import React, { useState, useEffect, useRef } from 'react';
-import { Platform, ScrollView, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
@@ -134,15 +141,14 @@ export default function HomeScreen() {
             {auth.isLoggedIn && (
               <TouchableOpacity onPress={performAutoSync} disabled={isSyncing}>
                 {isSyncing ? (
-                  <ActivityIndicator size={20} className="text-blue-500" />
+                  <ActivityIndicator size={12} className="mb-2 text-primary" />
                 ) : (
-                  <Icon as={Cloud} size={20} className="text-green-500" />
+                  <Icon as={Cloud} size={12} className="mb-2 text-primary" />
                 )}
               </TouchableOpacity>
             )}
           </View>
           <View className="flex-row items-center gap-2">
-            {isSyncing && <ActivityIndicator size={16} className="text-muted-foreground" />}
             <TouchableOpacity onPress={() => setSearchOpen(true)} className="p-2">
               <Icon as={Search} size={24} className="text-foreground" />
             </TouchableOpacity>
@@ -262,7 +268,12 @@ export default function HomeScreen() {
             </Link>
           </Animated.View>
         </View>
-        <View className="h-10" />
+        <View className="h-20 flex-row justify-center gap-1">
+          <Text className="text-muted-foreground">Build by</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('https://basharkhan.com')}>
+            <Text className="text-foreground">Bashar Khan</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
       <SearchModal open={searchOpen} onOpenChange={setSearchOpen} />
     </>

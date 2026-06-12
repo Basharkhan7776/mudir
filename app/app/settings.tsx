@@ -51,7 +51,14 @@ import { setLedger } from '@/lib/store/slices/ledgerSlice';
 import { exportData, importData } from '@/lib/utils/export-import';
 import { Icon } from '@/components/ui/icon';
 import { seedDatabase, clearDatabase, getSeedData } from '@/lib/seed';
-import { onAuthChange, syncData, checkSyncStatus, environment, signInWithGoogle, signOut } from '@/lib/api';
+import {
+  onAuthChange,
+  syncData,
+  checkSyncStatus,
+  environment,
+  signInWithGoogle,
+  signOut,
+} from '@/lib/api';
 import { setUser, setLastSync, setIsSyncing, logout } from '@/lib/store/slices/authSlice';
 
 const CURRENCIES = [
@@ -471,8 +478,8 @@ export default function SettingsScreen() {
               {auth.isLoggedIn ? (
                 <>
                   <View className="flex-row items-center gap-3 p-4">
-                    <View className="h-8 w-8 items-center justify-center rounded-full bg-green-500">
-                      <Icon as={Cloud} size={18} className="text-white" />
+                    <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
+                      <Icon as={Cloud} size={18} className="text-primary-foreground" />
                     </View>
                     <View className="flex-1">
                       <Text className="font-semibold text-foreground">
@@ -497,11 +504,11 @@ export default function SettingsScreen() {
                     disabled={isSyncing}>
                     <View className="w-full flex-row items-center justify-between p-4">
                       <View className="flex-row items-center gap-3">
-                        <View className="h-8 w-8 items-center justify-center rounded-full bg-blue-500">
+                        <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
                           {isSyncing ? (
-                            <ActivityIndicator size={18} color="white" />
+                            <ActivityIndicator size={18} color="text-primary-foreground" />
                           ) : (
-                            <Icon as={RefreshCw} size={18} className="text-white" />
+                            <Icon as={RefreshCw} size={18} className="text-primary-foreground" />
                           )}
                         </View>
                         <Text className="font-semibold text-foreground">
@@ -518,8 +525,8 @@ export default function SettingsScreen() {
                     onPress={handleLogout}>
                     <View className="w-full flex-row items-center justify-between p-4">
                       <View className="flex-row items-center gap-3">
-                        <View className="h-8 w-8 items-center justify-center rounded-full bg-red-500">
-                          <Icon as={LogOut} size={18} className="text-white" />
+                        <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
+                          <Icon as={LogOut} size={18} className="text-primary-foreground" />
                         </View>
                         <Text className="font-semibold text-foreground">Sign Out</Text>
                       </View>
@@ -535,11 +542,11 @@ export default function SettingsScreen() {
                   disabled={isLoggingIn}>
                   <View className="w-full flex-row items-center justify-between p-4">
                     <View className="flex-row items-center gap-3">
-                      <View className="h-8 w-8 items-center justify-center rounded-full bg-gray-500">
+                      <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
                         {isLoggingIn ? (
-                          <ActivityIndicator size={18} color="white" />
+                          <ActivityIndicator size={18} className="text-primary-foreground" />
                         ) : (
-                          <Icon as={CloudOff} size={18} className="text-white" />
+                          <Icon as={CloudOff} size={18} className="text-primary-foreground" />
                         )}
                       </View>
                       <Text className="font-semibold text-foreground">
