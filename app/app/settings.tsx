@@ -37,8 +37,8 @@ import {
   LogOut,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useState, useEffect, useRef } from 'react';
-import { ScrollView, View, Alert, ActivityIndicator, AppState } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { ScrollView, View, Alert, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
 import {
@@ -88,8 +88,6 @@ export default function SettingsScreen() {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Re-check auth when the app returns to the foreground (e.g. after browser OAuth)
-  const appState = useRef(AppState.currentState);
   useEffect(() => {
     const unsubscribe = onAuthChange((user) => {
       dispatch(setUser(user));
@@ -103,36 +101,18 @@ export default function SettingsScreen() {
       }
     });
 
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        // App came to foreground — re-check auth (picks up token saved by deep link)
-        onAuthChange((user) => {
-          dispatch(setUser(user));
-          if (user) {
-            checkSyncStatus().then((status) => {
-              setSyncStatus({
-                lastSync: status.lastSync,
-                hasData: status.hasData,
-              });
-            });
-          }
-        });
-      }
-      appState.current = nextAppState;
-    });
-
-    return () => {
-      unsubscribe();
-      subscription.remove();
-    };
+    return () => unsubscribe();
   }, [dispatch]);
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
     try {
-      await signInWithGoogle();
-      // Browser opens for OAuth. Token comes back via deep link (auth-callback.tsx).
-      // onAuthChange + AppState listener will pick up the session automatically.
+      const user = await signInWithGoogle();
+      if (user) {
+        dispatch(setUser(user));
+        setSuccessMessage(`Welcome, ${user.name || 'User'}!`);
+        setSuccessDialogOpen(true);
+      }
     } catch (error) {
       console.error('[Settings] Google login error:', error);
       Alert.alert('Login Failed', 'Could not sign in with Google');
@@ -242,57 +222,6 @@ export default function SettingsScreen() {
       setSuccessMessage('Data imported successfully');
       setSuccessDialogOpen(true);
     }
-  };
-
-  const handleSeed = async () => {
-    console.log('[Settings] Starting seed...');
-    try {
-      const success = await seedDatabase();
-      console.log('[Settings] Seed result:', success);
-      if (success) {
-        // Import seedData directly/reuse to update redux to avoid reload requirement
-        const data = getSeedData();
-        console.log('[Settings] Dispatching seed data to Redux');
-        dispatch(setSettings(data.meta));
-        dispatch(setCollections(data.collections));
-        dispatch(setLedger(data.ledger));
-        setSuccessMessage('Database seeded successfully');
-        setSuccessDialogOpen(true);
-      } else {
-        console.error('[Settings] Seed returned false');
-      }
-    } catch (e) {
-      console.error('[Settings] Seed failed:', e);
-    }
-  };
-
-  const handleClear = () => {
-    Alert.alert('Clear Database', 'This will permanently delete all data. Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete All',
-        style: 'destructive',
-        onPress: async () => {
-          console.log('[Settings] Starting clear...');
-          try {
-            const success = await clearDatabase();
-            console.log('[Settings] Clear result:', success);
-            if (success) {
-              console.log('[Settings] Dispatching empty state to Redux');
-              dispatch(setSettings({ ...settings, isNewUser: true })); // Reset specific settings if needed or just keep simplistic
-              dispatch(setCollections([]));
-              dispatch(setLedger([]));
-              setSuccessMessage('Database cleared');
-              setSuccessDialogOpen(true);
-            } else {
-              console.error('[Settings] Clear returned false');
-            }
-          } catch (e) {
-            console.error('[Settings] Clear failed:', e);
-          }
-        },
-      },
-    ]);
   };
 
   return (
@@ -432,36 +361,6 @@ export default function SettingsScreen() {
                       <Icon as={FileUp} size={18} className="text-primary-foreground" />
                     </View>
                     <Text className="font-semibold text-foreground">Import Data</Text>
-                  </View>
-                  <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
-                </View>
-              </Button>
-
-              <Button
-                variant="ghost"
-                className="h-auto w-full flex-col items-stretch justify-start p-0"
-                onPress={handleSeed}>
-                <View className="w-full flex-row items-center justify-between p-4">
-                  <View className="flex-row items-center gap-3">
-                    <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
-                      <Icon as={Database} size={18} className="text-primary-foreground" />
-                    </View>
-                    <Text className="font-semibold text-foreground">Seed Database (Demo)</Text>
-                  </View>
-                  <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
-                </View>
-              </Button>
-
-              <Button
-                variant="ghost"
-                className="h-auto w-full flex-col items-stretch justify-start p-0"
-                onPress={handleClear}>
-                <View className="w-full flex-row items-center justify-between p-4">
-                  <View className="flex-row items-center gap-3">
-                    <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
-                      <Icon as={Trash2} size={18} className="text-primary-foreground" />
-                    </View>
-                    <Text className="font-semibold text-foreground">Clear All Data</Text>
                   </View>
                   <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
                 </View>

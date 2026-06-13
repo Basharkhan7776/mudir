@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { getAuthToken } from './auth';
+import { authFetch, getSession } from './auth';
 import { DatabaseSchema } from '@/lib/types';
 
 const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
@@ -7,7 +7,8 @@ const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
 const getEnvVars = () => {
   const extra = Constants.expoConfig?.extra || {};
   return {
-    apiUrl: process.env.EXPO_PUBLIC_SERVER_URL || extra.EXPO_PUBLIC_SERVER_URL || 'http://localhost:3001',
+    apiUrl:
+      process.env.EXPO_PUBLIC_SERVER_URL || extra.EXPO_PUBLIC_SERVER_URL || 'http://localhost:3001',
   };
 };
 
@@ -47,22 +48,19 @@ export const getSyncStatus = async (): Promise<{
 }> => {
   try {
     const env = getEnvVars();
-    const token = await getAuthToken();
-    
-    if (!token) {
+    const session = await getSession();
+
+    if (!session) {
       return { hasData: false, lastSync: null, dataHash: null, dataSize: null };
     }
-    
-    const response = await fetch(`${env.apiUrl}/api/sync/status`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    
+
+    const response = await authFetch(`${env.apiUrl}/api/sync/status`);
+    console.log('[Sync] getStatus response:', response);
+
     if (!response.ok) {
       return { hasData: false, lastSync: null, dataHash: null, dataSize: null };
     }
-    
+
     const data = await response.json();
     return {
       hasData: data.hasData,
@@ -87,29 +85,24 @@ export const checkSyncStatus = async (): Promise<{
 export const pullData = async (): Promise<SyncResult> => {
   try {
     const env = getEnvVars();
-    const token = await getAuthToken();
-    
-    if (!token) {
+    const session = await getSession();
+
+    if (!session) {
       return { success: false, message: 'Not authenticated' };
     }
-    
-    const response = await fetch(`${env.apiUrl}/api/sync`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    
+
+    const response = await authFetch(`${env.apiUrl}/api/sync`);
+
     if (!response.ok) {
       return { success: false, message: 'Failed to fetch data' };
     }
-    
+
     const data = await response.json();
-    
+
     if (!data.data) {
       return { success: false, message: 'No data found' };
     }
-    
+
     return {
       success: true,
       message: 'Data pulled successfully',
@@ -122,15 +115,18 @@ export const pullData = async (): Promise<SyncResult> => {
   }
 };
 
-export const pushData = async (localData: DatabaseSchema, lastSync: string | null): Promise<SyncResult> => {
+export const pushData = async (
+  localData: DatabaseSchema,
+  lastSync: string | null
+): Promise<SyncResult> => {
   try {
     const env = getEnvVars();
-    const token = await getAuthToken();
-    
-    if (!token) {
+    const session = await getSession();
+
+    if (!session) {
       return { success: false, message: 'Not authenticated' };
     }
-    
+
     if (!isDataSizeValid(localData)) {
       const currentSize = getDataSize(localData);
       return {
@@ -138,11 +134,10 @@ export const pushData = async (localData: DatabaseSchema, lastSync: string | nul
         message: `Data size (${formatBytes(currentSize)}) exceeds limit of ${formatBytes(MAX_DATA_SIZE_BYTES)}. Please reduce data before syncing.`,
       };
     }
-    
-    const response = await fetch(`${env.apiUrl}/api/sync`, {
+
+    const response = await authFetch(`${env.apiUrl}/api/sync`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -150,13 +145,13 @@ export const pushData = async (localData: DatabaseSchema, lastSync: string | nul
         lastSync,
       }),
     });
-    
+
     if (!response.ok) {
       return { success: false, message: 'Failed to push data' };
     }
-    
+
     const result = await response.json();
-    
+
     if (result.conflict) {
       return {
         success: false,
@@ -165,7 +160,7 @@ export const pushData = async (localData: DatabaseSchema, lastSync: string | nul
         action: 'none',
       };
     }
-    
+
     return {
       success: true,
       message: 'Data pushed successfully',
@@ -178,31 +173,31 @@ export const pushData = async (localData: DatabaseSchema, lastSync: string | nul
 };
 
 export const syncData = async (localData: DatabaseSchema): Promise<SyncResult> => {
-  const token = await getAuthToken();
-  
-  if (!token) {
+  const session = await getSession();
+
+  if (!session) {
     return { success: false, message: 'Not authenticated' };
   }
-  
+
   const status = await getSyncStatus();
   const localLastUpdate = localData.meta?.exportDate || new Date(0).toISOString();
   const remoteLastUpdate = status.lastSync || new Date(0).toISOString();
-  
+
   const hasLocalData = localData.collections?.length > 0 || localData.ledger?.length > 0;
   const hasRemoteData = status.hasData;
-  
+
   if (!hasRemoteData && hasLocalData) {
     return pushData(localData, null);
   }
-  
+
   if (hasRemoteData && !hasLocalData) {
     return pullData();
   }
-  
+
   if (hasRemoteData && hasLocalData) {
     const localDate = new Date(localLastUpdate);
     const remoteDate = new Date(remoteLastUpdate);
-    
+
     if (localDate > remoteDate) {
       return pushData(localData, status.lastSync);
     } else if (remoteDate > localDate) {
@@ -215,6 +210,6 @@ export const syncData = async (localData: DatabaseSchema): Promise<SyncResult> =
       };
     }
   }
-  
+
   return { success: false, message: 'No data to sync' };
 };

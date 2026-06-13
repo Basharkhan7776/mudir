@@ -13,6 +13,7 @@
     "build:android": "eas build -p android --profile production"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.6.18",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "9.1.0",
     "@reduxjs/toolkit": "^2.11.0",
@@ -40,6 +41,7 @@
     "@rn-primitives/toggle": "^1.2.0",
     "@rn-primitives/toggle-group": "^1.2.0",
     "@rn-primitives/tooltip": "^1.2.0",
+    "better-auth": "^1.6.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "expo": "~56.0.0",
@@ -48,12 +50,15 @@
     "expo-document-picker": "~56.0.4",
     "expo-file-system": "~56.0.8",
     "expo-linking": "~56.0.14",
+    "expo-network": "~56.0.5",
     "expo-print": "~56.0.4",
     "expo-router": "~56.2.10",
+    "expo-secure-store": "~56.0.4",
     "expo-sharing": "~56.0.17",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "expo-system-ui": "~56.0.5",
+    "expo-web-browser": "~56.0.5",
     "lucide": "^0.555.0",
     "lucide-react-native": "^0.545.0",
     "nativewind": "^4.2.1",
@@ -75,7 +80,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@types/react": "~19.2.14",
-    "baseline-browser-mapping": "^2.10.35",
+    "baseline-browser-mapping": "^2.10.37",
     "prettier": "^3.7.4",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "typescript": "~6.0.3"

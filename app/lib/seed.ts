@@ -7,7 +7,6 @@ export async function seedDatabase() {
     console.log('[Seed] Starting database seeding...');
     await db.write(seedData);
     console.log('[Seed] Database seeded successfully!');
-    // console.log('Seed data:', JSON.stringify(seedData, null, 2));
     return true;
   } catch (error) {
     console.error('[Seed] Failed to seed database:', error);

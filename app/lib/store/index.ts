@@ -49,7 +49,7 @@ export const store = configureStore({
 // Initialize store from DB
 db.init()
   .then((data) => {
-    console.log('DB initialized with data:', JSON.stringify(data, null, 2));
+    console.log('DB initialized with data');
     store.dispatch(setCollections(data.collections));
     store.dispatch(setLedger(data.ledger));
     store.dispatch(setSettings(data.meta));

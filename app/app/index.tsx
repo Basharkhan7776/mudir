@@ -129,7 +129,8 @@ export default function HomeScreen() {
   return (
     <>
       <ScrollView
-        contentContainerClassName="p-5 gap-6 bg-background"
+        className="flex-1 bg-background"
+        contentContainerClassName="p-5 gap-6"
         style={{ paddingTop: insets.top }}
         showsVerticalScrollIndicator={false}>
         <Animated.View
