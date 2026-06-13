@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { expo } from "@better-auth/expo";
 import { MongoClient, Db } from "mongodb";
+import os from "os";
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
@@ -20,6 +21,21 @@ export async function getDb(): Promise<Db> {
   return db;
 }
 
+// Automatically detect local IPs to add to trusted origins
+const getLocalIpOrigins = () => {
+  const origins: string[] = [];
+  const interfaces = os.networkInterfaces();
+  const port = process.env.PORT || 3001;
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]!) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        origins.push(`http://${iface.address}:${port}`);
+      }
+    }
+  }
+  return origins;
+};
+
 export const auth = betterAuth({
   database: mongodbAdapter(await getDb(), {
     usePlural: true,
@@ -35,19 +51,15 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    "mudir://",
-    ...(process.env.NODE_ENV === "development"
-      ? [
-          "exp://",
-          "exp://**",
-          "exp://192.168.*.*:*/**",
-          "http://localhost:8081",
-          "http://localhost:3000",
-          "https://apimudir.basharkhan.com",
-        ]
-      : []),
-    process.env.BETTER_AUTH_URL || "http://localhost:3001",
-    process.env.FRONTEND_URL || "http://localhost:3000",
+    'mudir://',
+    'exp://',
+    'exp://**',
+    'exp://192.168.*.*:*/**',
+    'http://localhost:8081',
+    'http://localhost:3000',
+    process.env.BETTER_AUTH_URL || 'http://localhost:3001',
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    ...getLocalIpOrigins(),
   ],
 });
 
