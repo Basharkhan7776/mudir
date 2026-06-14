@@ -1,4 +1,4 @@
-import { Collection, CollectionItem } from '@/lib/types';
+import { Collection, CollectionItem } from '@mudir/types';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface InventoryState {

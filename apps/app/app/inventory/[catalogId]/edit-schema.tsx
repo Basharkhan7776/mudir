@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SchemaField } from '@/lib/types';
+import { SchemaField } from '@mudir/types';
 
 // Use FieldType from types or local
 type FieldType = 'text' | 'number' | 'select' | 'currency' | 'date' | 'boolean' | 'image';

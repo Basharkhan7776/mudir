@@ -1,69 +1,14 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-
-export interface AppMeta {
-  appVersion: string;
-  exportDate: string;
-  userCurrency: string;
-  organizationName: string;
-  isNewUser?: boolean;
-}
-
-export interface SchemaField {
-  key: string;
-  label: string;
-  type: string;
-  options?: string[];
-  required?: boolean;
-  defaultValue?: unknown;
-}
-
-export interface CollectionItem {
-  id: string;
-  createdAt: string;
-  updatedAt?: string;
-  values: Record<string, unknown>;
-}
-
-export interface Collection {
-  id: string;
-  name: string;
-  description?: string;
-  schema: SchemaField[];
-  data: CollectionItem[];
-}
-
-export interface TransactionType extends String {
-  _type: 'CREDIT' | 'DEBIT';
-}
-
-export interface Transaction {
-  id: string;
-  organizationId: string;
-  type: 'CREDIT' | 'DEBIT';
-  amount: number;
-  date: string;
-  remark?: string;
-  attachment?: string | null;
-  tags?: string[];
-}
-
-export interface Organization {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-}
-
-export interface LedgerEntry {
-  organization: Organization;
-  transactions: Transaction[];
-}
-
-export interface DatabaseData {
-  meta: AppMeta;
-  collections: Collection[];
-  ledger: LedgerEntry[];
-}
+import {
+  AppMeta,
+  SchemaField,
+  CollectionItem,
+  Collection,
+  Transaction,
+  Organization,
+  LedgerEntry,
+  DatabaseSchema as DatabaseData
+} from '@mudir/types';
 
 export interface IDatabase extends Document {
   userId: string;

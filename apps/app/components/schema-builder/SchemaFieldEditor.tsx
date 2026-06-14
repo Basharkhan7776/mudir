@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { SchemaField, SchemaFieldType } from '@/lib/types';
+import { SchemaField, SchemaFieldType } from '@mudir/types';
 import { Trash2, Plus } from 'lucide-react-native';
 import { Icon } from '../ui/icon';
 

@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { authFetch, getSession } from './auth';
-import { DatabaseSchema } from '@/lib/types';
+import { DatabaseSchema } from '@mudir/types';
 
 const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
 

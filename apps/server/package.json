@@ -2,6 +2,7 @@
   "name": "server",
   "type": "module",
   "dependencies": {
+    "@mudir/types": "workspace:*",
     "@better-auth/expo": "^1.6.18",
     "@better-auth/mongo-adapter": "^1.6.16",
     "better-auth": "^1.6.16",

@@ -1,4 +1,4 @@
-import { LedgerEntry, Organization, Transaction } from '@/lib/types';
+import { LedgerEntry, Organization, Transaction } from '@mudir/types';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface LedgerState {

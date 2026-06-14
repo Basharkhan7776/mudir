@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mudir/types": "workspace:*",
     "react": "^19.2.3",
     "lucide-react": "^0.562.0",
     "framer-motion": "^12.24.0",

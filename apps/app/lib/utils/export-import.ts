@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
-import { DatabaseSchema } from '@/lib/types';
+import { DatabaseSchema } from '@mudir/types';
 import { Alert } from 'react-native';
 
 const docDir = FileSystem.documentDirectory;

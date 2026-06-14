@@ -1,13 +1,17 @@
-import express from 'express';
-import { auth, getDb } from './auth.js';
-import crypto from 'crypto';
+import express from "express";
+import { auth, getDb } from "@/auth";
+import crypto from "crypto";
 
 const router = express.Router();
 
 const MAX_DATA_SIZE_BYTES = 200 * 1024; // 200KB
 
 function calculateDataHash(data: unknown): string {
-  return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex').slice(0, 16);
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(data))
+    .digest("hex")
+    .slice(0, 16);
 }
 
 function getDataSize(data: unknown): number {
@@ -15,27 +19,27 @@ function getDataSize(data: unknown): number {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(2) + " MB";
 }
 
 // Lightweight status check — returns metadata without the full data payload
-router.get('/status', async (req, res) => {
+router.get("/status", async (req, res) => {
   try {
     const session = await auth.api.getSession({
       headers: req.headers as any,
     });
 
     if (!session?.user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
     const db = await getDb();
-    const userDb = await db.collection('databases').findOne(
+    const userDb = await db.collection("databases").findOne(
       { userId: session.user.id },
-      { projection: { data: 0 } } // Exclude the large data field
+      { projection: { data: 0 } }, // Exclude the large data field
     );
 
     if (!userDb) {
@@ -55,30 +59,32 @@ router.get('/status', async (req, res) => {
       dataSize: userDb.dataSize,
     });
   } catch (error) {
-    console.error('Sync status error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Sync status error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const session = await auth.api.getSession({
       headers: req.headers as any,
     });
 
     if (!session?.user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
     const db = await getDb();
-    const userDb = await db.collection('databases').findOne({ userId: session.user.id });
+    const userDb = await db
+      .collection("databases")
+      .findOne({ userId: session.user.id });
 
     if (!userDb) {
       res.json({
         data: null,
         lastSync: null,
-        message: 'No data found',
+        message: "No data found",
       });
       return;
     }
@@ -89,26 +95,26 @@ router.get('/', async (req, res) => {
       dataHash: userDb.dataHash,
     });
   } catch (error) {
-    console.error('Sync GET error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Sync GET error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const session = await auth.api.getSession({
       headers: req.headers as any,
     });
 
     if (!session?.user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
     const { data, lastSync } = req.body;
 
     if (!data) {
-      res.status(400).json({ error: 'No data provided' });
+      res.status(400).json({ error: "No data provided" });
       return;
     }
 
@@ -125,22 +131,22 @@ router.post('/', async (req, res) => {
     const dataHash = calculateDataHash(data);
     const now = new Date().toISOString();
 
-    const existing = await db.collection('databases').findOne({ userId });
+    const existing = await db.collection("databases").findOne({ userId });
 
     if (existing) {
       const serverLastSync = existing.lastSync;
-      
+
       if (lastSync && serverLastSync > lastSync) {
         res.json({
           conflict: true,
           serverData: existing.data,
           lastSync: serverLastSync,
-          message: 'Server has newer data',
+          message: "Server has newer data",
         });
         return;
       }
 
-      await db.collection('databases').updateOne(
+      await db.collection("databases").updateOne(
         { userId },
         {
           $set: {
@@ -150,10 +156,10 @@ router.post('/', async (req, res) => {
             dataSize,
             updatedAt: new Date(),
           },
-        }
+        },
       );
     } else {
-      await db.collection('databases').insertOne({
+      await db.collection("databases").insertOne({
         userId,
         data,
         lastSync: now,
@@ -170,8 +176,8 @@ router.post('/', async (req, res) => {
       dataHash,
     });
   } catch (error) {
-    console.error('Sync POST error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Sync POST error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

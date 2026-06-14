@@ -20,7 +20,7 @@ import { ScrollView, View, Platform, KeyboardAvoidingView, Pressable } from 'rea
 import { useDispatch, useSelector } from 'react-redux';
 import { addItem, updateItem } from '@/lib/store/slices/inventorySlice';
 import { RootState } from '@/lib/store';
-import { CollectionItem } from '@/lib/types';
+import { CollectionItem } from '@mudir/types';
 
 export default function ItemFormScreen() {
   const router = useRouter();

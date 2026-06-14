@@ -1,4 +1,4 @@
-import { AppMeta } from '@/lib/types';
+import { AppMeta } from '@mudir/types';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface SettingsState {
