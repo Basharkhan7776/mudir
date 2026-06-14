@@ -10,7 +10,6 @@ const app = express();
 
 app.use(express.json());
 
-// Mount better-auth handler for all /api/auth/* routes
 // The @better-auth/expo plugin handles mobile OAuth flows automatically
 app.all(/^\/api\/auth/, toNodeHandler(auth));
 
