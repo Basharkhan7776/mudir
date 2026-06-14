@@ -37,6 +37,7 @@ const getLocalIpOrigins = () => {
 };
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
   database: mongodbAdapter(await getDb(), {
     usePlural: true,
   }),

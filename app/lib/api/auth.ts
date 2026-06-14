@@ -1,5 +1,4 @@
 import { authClient } from '@/lib/auth-client';
-import * as Linking from 'expo-linking';
 
 export interface AuthUser {
   id: string;
@@ -17,15 +16,17 @@ export interface Session {
  * Opens Google OAuth via in-app browser.
  * The @better-auth/expo plugin handles the entire flow:
  * browser open → Google consent → redirect back → cookie stored in SecureStore
+ *
+ * callbackURL is a relative path — the expoClient plugin automatically
+ * converts it to a deep link using Linking.createURL.
+ * On native, signIn.social does NOT navigate automatically;
+ * we handle navigation ourselves after it resolves.
  */
 export const signInWithGoogle = async (): Promise<AuthUser | null> => {
   try {
-    const callbackURL = Linking.createURL('/');
-    console.log('[Auth] Using callbackURL:', callbackURL);
-    
     const result = await authClient.signIn.social({
       provider: 'google',
-      callbackURL,
+      callbackURL: '/',
     });
 
     if (result.error) {

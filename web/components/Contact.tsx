@@ -26,10 +26,10 @@ export const Contact: React.FC = () => {
     }
 
     const text = `
-New Contact Form Submission from mudir:
-Name: ${formData.name}
-Email: ${formData.email}
-Message: ${formData.message}
+      New Contact Form Submission from mudir:
+      Name: ${formData.name}
+      Email: ${formData.email}
+      Message: ${formData.message}
     `;
 
     try {
