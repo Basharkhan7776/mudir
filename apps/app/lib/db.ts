@@ -19,6 +19,7 @@ const INITIAL_DB: DatabaseSchema = {
     },
     collections: seedData.collections,
     ledger: seedData.ledger,
+    receipts: seedData.receipts || [],
 };
 
 class JsonDb {

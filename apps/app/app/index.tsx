@@ -10,6 +10,7 @@ import {
   Settings,
   Cloud,
   RefreshCw,
+  ReceiptText,
 } from 'lucide-react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -222,6 +223,43 @@ export default function HomeScreen() {
                       <Text className="text-lg font-semibold text-foreground">
                         Track Organizations
                       </Text>
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-black dark:bg-white">
+                        <Icon as={ArrowRight} size={20} className="text-white dark:text-black" />
+                      </View>
+                    </View>
+                  </CardContent>
+                </Card>
+              </TouchableOpacity>
+            </Link>
+          </Animated.View>
+
+          {/* Receipts Card */}
+          <Animated.View
+            entering={Platform.OS !== 'web' ? createStaggeredAnimation(1, FadeInDown) : undefined}>
+            <Link href="/receipts" asChild>
+              <TouchableOpacity activeOpacity={0.9}>
+                <Card className="h-64 w-full justify-between overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
+                  <CardContent className="h-full justify-between p-6">
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <Icon as={ReceiptText} size={20} className="text-muted-foreground" />
+                        <Text className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                          Receipts
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View>
+                      <Text
+                        className="-ml-1 text-6xl font-black tracking-tighter text-foreground"
+                        numberOfLines={1}
+                        adjustsFontSizeToFit>
+                        {formatBalance(totalLedgerBalance)}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between border-t border-gray-100 pt-4 dark:border-zinc-800">
+                      <Text className="text-lg font-semibold text-foreground">View Receipts </Text>
                       <View className="h-10 w-10 items-center justify-center rounded-full bg-black dark:bg-white">
                         <Icon as={ArrowRight} size={20} className="text-white dark:text-black" />
                       </View>

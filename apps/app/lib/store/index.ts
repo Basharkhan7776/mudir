@@ -3,11 +3,11 @@ import inventoryReducer, { setCollections } from './slices/inventorySlice';
 import ledgerReducer, { setLedger } from './slices/ledgerSlice';
 import settingsReducer, { setSettings } from './slices/settingsSlice';
 import authReducer from './slices/authSlice';
+import receiptsReducer, { setReceipts } from './slices/receiptsSlice';
 import { db } from '@/lib/db';
 
 const listenerMiddleware = createListenerMiddleware();
 
-// Listener to save state changes to DB
 // Listener to save state changes to DB
 listenerMiddleware.startListening({
   predicate: (action, currentState, previousState) => {
@@ -31,6 +31,7 @@ listenerMiddleware.startListening({
       },
       collections: state.inventory.collections,
       ledger: state.ledger.entries,
+      receipts: state.receipts.list,
     });
   },
 });
@@ -41,6 +42,7 @@ export const store = configureStore({
     ledger: ledgerReducer,
     settings: settingsReducer,
     auth: authReducer,
+    receipts: receiptsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().prepend(listenerMiddleware.middleware),
@@ -53,6 +55,7 @@ db.init()
     store.dispatch(setCollections(data.collections));
     store.dispatch(setLedger(data.ledger));
     store.dispatch(setSettings(data.meta));
+    store.dispatch(setReceipts(data.receipts || []));
   })
   .catch((error) => {
     console.error('Failed to initialize DB:', error);

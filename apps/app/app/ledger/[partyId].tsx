@@ -393,7 +393,7 @@ export default function PartyScreen() {
             onPress={() => setAddEntryModalOpen(true)}
             className="h-14 flex-row items-center justify-center gap-2 rounded-full bg-black shadow-lg dark:bg-white">
             <Icon as={Plus} size={24} className="text-white dark:text-black" />
-            <Text className="text-lg font-bold text-white dark:text-black">Add Entry</Text>
+            <Text className="text-lg font-bold text-white dark:text-black">Add Entry </Text>
           </Pressable>
         </Animated.View>
 

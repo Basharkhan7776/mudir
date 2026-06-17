@@ -407,4 +407,28 @@ export const seedData: DatabaseSchema = {
       ],
     },
   ],
+  receipts: [
+    {
+      id: 'receipt1',
+      customerName: 'John Doe',
+      phone: '+91 98765 12345',
+      date: new Date().toISOString(),
+      description: 'Monthly groceries',
+      createdAt: new Date().toISOString(),
+      items: [
+        {
+          id: 'item1',
+          name: 'Rice 5kg',
+          price: 350,
+          quantity: 2,
+        },
+        {
+          id: 'item2',
+          name: 'Cooking Oil 1L',
+          price: 180,
+          quantity: 3,
+        },
+      ],
+    },
+  ],
 };

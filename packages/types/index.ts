@@ -57,8 +57,27 @@ export type AppMeta = {
   isNewUser?: boolean;
 };
 
+export type ReceiptItem = {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+};
+
+export type Receipt = {
+  id: string;
+  customerName: string;
+  phone: string;
+  date: string; // ISO string
+  description?: string;
+  items: ReceiptItem[];
+  createdAt: string; // ISO string
+  updatedAt?: string; // ISO string
+};
+
 export type DatabaseSchema = {
   meta: AppMeta;
   collections: Collection[];
   ledger: LedgerEntry[];
+  receipts: Receipt[];
 };
