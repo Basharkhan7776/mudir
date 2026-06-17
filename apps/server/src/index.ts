@@ -2,8 +2,8 @@ import "dotenv/config";
 import express from "express";
 import { fileURLToPath } from "url";
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "@/auth.js";
-import syncRouter from "@/sync";
+import { auth } from "./auth.js";
+import syncRouter from "./sync.js";
 import os from "os";
 
 const app = express();
@@ -15,6 +15,10 @@ app.all(/^\/api\/auth/, toNodeHandler(auth));
 
 // Mount sync routes
 app.use("/api/sync", syncRouter);
+
+app.get("/", (_req, res) => {
+  res.status(301).redirect("https://mudir.basharkhan.com");
+});
 
 // Health check
 app.get("/healthz", (_req, res) => {

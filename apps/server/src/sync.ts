@@ -1,5 +1,5 @@
 import express from "express";
-import { auth, getDb } from "@/auth";
+import { auth, getDb } from "./auth.js";
 import crypto from "crypto";
 
 const router = express.Router();
