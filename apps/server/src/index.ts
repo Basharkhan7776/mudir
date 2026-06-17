@@ -16,10 +16,6 @@ app.all(/^\/api\/auth/, toNodeHandler(auth));
 // Mount sync routes
 app.use("/api/sync", syncRouter);
 
-app.get("/", (_req, res) => {
-  res.status(301).redirect("https://mudir.basharkhan.com");
-});
-
 // Health check
 app.get("/healthz", (_req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
