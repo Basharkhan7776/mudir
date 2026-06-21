@@ -3,10 +3,10 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { removeReceiptItem, addReceiptItem } from '@/lib/store/slices/receiptsSlice';
+import { removeReceiptItem, addReceiptItem, updateReceiptItem } from '@/lib/store/slices/receiptsSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Trash2, Check, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, Check, X, Edit2 } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { View, ScrollView, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -31,6 +31,7 @@ export default function ReceiptDetailsScreen() {
   const [itemName, setItemName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const handleAddItem = () => {
     if (!itemName.trim()) {
@@ -51,22 +52,37 @@ export default function ReceiptDetailsScreen() {
       return;
     }
 
-    dispatch(
-      addReceiptItem({
-        receiptId: receipt!.id,
-        item: {
-          id: Date.now().toString(),
-          name: itemName.trim(),
-          price: numericPrice,
-          quantity: numericQuantity,
-        },
-      })
-    );
+    if (selectedItemId) {
+      dispatch(
+        updateReceiptItem({
+          receiptId: receipt!.id,
+          item: {
+            id: selectedItemId,
+            name: itemName.trim(),
+            price: numericPrice,
+            quantity: numericQuantity,
+          },
+        })
+      );
+    } else {
+      dispatch(
+        addReceiptItem({
+          receiptId: receipt!.id,
+          item: {
+            id: Date.now().toString(),
+            name: itemName.trim(),
+            price: numericPrice,
+            quantity: numericQuantity,
+          },
+        })
+      );
+    }
 
     setIsAddItemModalOpen(false);
     setItemName('');
     setPrice('');
     setQuantity('');
+    setSelectedItemId(null);
   };
 
   const totalAmount = useMemo(() => {
@@ -96,6 +112,7 @@ export default function ReceiptDetailsScreen() {
           style: 'destructive',
           onPress: () => {
             dispatch(removeReceiptItem({ receiptId: receipt.id, itemId }));
+            if (selectedItemId === itemId) setSelectedItemId(null);
           },
         },
       ]
@@ -159,70 +176,113 @@ export default function ReceiptDetailsScreen() {
                 <Text className="text-muted-foreground text-center">No items added yet</Text>
               </View>
             ) : (
-              receipt.items.map((item, index) => (
+              receipt.items.map((item, index) => {
+                const isSelected = selectedItemId === item.id;
+                return (
                 <Animated.View
                   key={item.id}
                   entering={createStaggeredAnimation(index).withInitialValues({ opacity: 0 })}
                   exiting={FadeOutUp}>
-                  <Card className="flex-row items-center justify-between rounded-2xl border-0 bg-card p-4 shadow-sm">
-                    <View className="flex-1 pr-4">
-                      <Text className="text-lg font-bold text-foreground" numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <Text className="text-sm text-muted-foreground mt-1">
-                        {item.quantity} x {currencySymbol}{item.price.toLocaleString()}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center gap-4">
-                      <Text className="text-xl font-black text-foreground">
-                        {currencySymbol}{(item.price * item.quantity).toLocaleString()}
-                      </Text>
-                      <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
-                        <Icon as={Trash2} size={20} className="text-destructive opacity-70" />
-                      </TouchableOpacity>
-                    </View>
-                  </Card>
+                  <Pressable onPress={() => setSelectedItemId(isSelected ? null : item.id)}>
+                    <Card className={`flex-row items-center justify-between rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
+                      <View className="flex-1 pr-4">
+                        <Text className="text-lg font-bold text-foreground" numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        <Text className="text-sm text-muted-foreground mt-1">
+                          {item.quantity} x {currencySymbol}{item.price.toLocaleString()}
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center gap-4">
+                        <Text className="text-xl font-black text-foreground">
+                          {currencySymbol}{(item.price * item.quantity).toLocaleString()}
+                        </Text>
+                      </View>
+                    </Card>
+                  </Pressable>
                 </Animated.View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>
 
-        {/* Floating Action Button */}
+        {/* Floating Action Buttons */}
         <Animated.View
           entering={FadeInDown.delay(300)}
-          className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-center px-6 pb-6"
+          className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
           style={{ paddingBottom: insets.bottom + 6 }}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setIsAddItemModalOpen(true)}
-            className="h-16 flex-row items-center justify-center gap-2 rounded-full bg-black px-8 shadow-lg dark:bg-white">
-            <Icon as={Plus} size={24} className="text-white dark:text-black" />
-            <Text className="text-lg font-bold text-white dark:text-black">Add Item</Text>
-          </TouchableOpacity>
+          <View className="h-14 w-14" />
+          
+          {!selectedItemId ? (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                setItemName('');
+                setPrice('');
+                setQuantity('');
+                setIsAddItemModalOpen(true);
+              }}
+              className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+              <Icon as={Plus} size={28} className="text-white dark:text-black" />
+            </TouchableOpacity>
+          ) : (
+            <Animated.View entering={FadeInDown} className="flex-row gap-4 pointer-events-auto">
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  const item = receipt.items.find(i => i.id === selectedItemId);
+                  if (item) {
+                    setItemName(item.name);
+                    setPrice(item.price.toString());
+                    setQuantity(item.quantity.toString());
+                    setIsAddItemModalOpen(true);
+                  }
+                }}
+                className="h-14 w-14 items-center justify-center rounded-full bg-blue-500 shadow-lg">
+                <Icon as={Edit2} size={24} className="text-white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => handleDeleteItem(selectedItemId)}
+                className="h-14 w-14 items-center justify-center rounded-full bg-destructive shadow-lg">
+                <Icon as={Trash2} size={24} className="text-destructive-foreground" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </Animated.View>
       </View>
 
-      {/* Add Item Modal */}
+      {/* Add/Edit Item Modal */}
       <Modal
         visible={isAddItemModalOpen}
         animationType="slide"
         transparent
-        onRequestClose={() => setIsAddItemModalOpen(false)}>
-        <View className="flex-1 justify-end bg-black/50">
-          <Pressable className="absolute inset-0" onPress={() => setIsAddItemModalOpen(false)} />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-            <View className="rounded-t-3xl bg-card pt-4 pb-8 max-h-[85%]">
+        onRequestClose={() => {
+           setIsAddItemModalOpen(false);
+           setSelectedItemId(null);
+        }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <Pressable className="absolute inset-0" onPress={() => {
+                setIsAddItemModalOpen(false);
+                setSelectedItemId(null);
+            }} />
+            <View className="rounded-t-3xl bg-card pt-4 max-h-[85%]">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">
-                  New Item
+                  {selectedItemId ? 'Edit Item' : 'New Item'}
                 </Text>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onPress={() => setIsAddItemModalOpen(false)}
+                  onPress={() => {
+                     setIsAddItemModalOpen(false);
+                     setSelectedItemId(null);
+                  }}
                   className="-mr-3">
                   <Icon as={X} size={24} className="text-foreground" />
                 </Button>
@@ -273,13 +333,13 @@ export default function ReceiptDetailsScreen() {
                     className="w-full flex-row items-center justify-center gap-2 rounded-2xl h-14"
                     onPress={handleAddItem}>
                     <Icon as={Check} size={20} className="text-primary-foreground" />
-                    <Text className="text-lg font-bold text-primary-foreground">Add Item</Text>
+                    <Text className="text-lg font-bold text-primary-foreground">{selectedItemId ? 'Save Changes' : 'Add Item'}</Text>
                   </Button>
                 </View>
               </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

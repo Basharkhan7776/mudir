@@ -321,12 +321,13 @@ export default function ReceiptsScreen() {
         animationType="slide"
         transparent
         onRequestClose={() => setIsCreateModalOpen(false)}>
-        <View className="flex-1 justify-end bg-black/50">
-          <Pressable className="absolute inset-0" onPress={() => setIsCreateModalOpen(false)} />
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-            <View className="rounded-t-3xl bg-card pt-4 pb-8 max-h-[85%]">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 justify-end bg-black/50">
+            <Pressable className="absolute inset-0" onPress={() => setIsCreateModalOpen(false)} />
+            <View className="rounded-t-3xl bg-card pt-4 max-h-[85%]">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">
                   New Receipt
@@ -376,7 +377,7 @@ export default function ReceiptsScreen() {
                     placeholder="E.g., Monthly supplies"
                     multiline
                     numberOfLines={3}
-                    className="min-h-[100px] rounded-2xl bg-secondary/50 px-5 py-4 text-lg"
+                    className="h-auto min-h-[100px] rounded-2xl bg-secondary/50 px-5 py-4 text-lg"
                     textAlignVertical="top"
                   />
                 </View>
@@ -392,8 +393,8 @@ export default function ReceiptsScreen() {
                 </View>
               </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

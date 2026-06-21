@@ -42,6 +42,16 @@ const receiptsSlice = createSlice({
         receipt.updatedAt = new Date().toISOString();
       }
     },
+    updateReceiptItem(state, action: PayloadAction<{ receiptId: string; item: ReceiptItem }>) {
+      const receipt = state.list.find((r) => r.id === action.payload.receiptId);
+      if (receipt) {
+        const itemIndex = receipt.items.findIndex(i => i.id === action.payload.item.id);
+        if (itemIndex !== -1) {
+          receipt.items[itemIndex] = action.payload.item;
+          receipt.updatedAt = new Date().toISOString();
+        }
+      }
+    },
   },
 });
 
@@ -52,6 +62,7 @@ export const {
   deleteReceipt,
   addReceiptItem,
   removeReceiptItem,
+  updateReceiptItem,
 } = receiptsSlice.actions;
 
 export default receiptsSlice.reducer;
