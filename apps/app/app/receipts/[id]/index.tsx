@@ -6,13 +6,34 @@ import { Icon } from '@/components/ui/icon';
 import { removeReceiptItem, addReceiptItem, updateReceiptItem } from '@/lib/store/slices/receiptsSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Plus, Trash2, Check, X, Edit2 } from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, Check, X, Pencil, Share } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutUp, FadeOutDown, LinearTransition } from 'react-native-reanimated';
 import { createStaggeredAnimation } from '@/lib/animations';
+import { generateReceiptPDF } from '@/lib/pdfGenerator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function ReceiptDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,13 +46,58 @@ export default function ReceiptDetailsScreen() {
   );
 
   const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
+  const orgName = useSelector((state: RootState) => state.settings.organizationName);
 
   // Modal State
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [itemName, setItemName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isSelectionMode = selectedIds.size > 0;
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+  const [isPrintingPDF, setIsPrintingPDF] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+
+  const toggleSelection = (itemId: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleLongPress = React.useCallback(
+    (itemId: string) => {
+      if (!isSelectionMode) {
+        setSelectedIds(new Set([itemId]));
+      }
+    },
+    [isSelectionMode]
+  );
+
+  const handlePress = React.useCallback(
+    (itemId: string) => {
+      if (isSelectionMode) {
+        toggleSelection(itemId);
+      } else {
+        toggleSelection(itemId); // In this list, tap always selects
+      }
+    },
+    [isSelectionMode, toggleSelection]
+  );
+
+  const handleBatchDelete = () => {
+    selectedIds.forEach((itemId) => {
+      dispatch(removeReceiptItem({ receiptId: receipt.id, itemId }));
+    });
+    setSelectedIds(new Set());
+  };
 
   const handleAddItem = () => {
     if (!itemName.trim()) {
@@ -52,12 +118,12 @@ export default function ReceiptDetailsScreen() {
       return;
     }
 
-    if (selectedItemId) {
+    if (editingItemId) {
       dispatch(
         updateReceiptItem({
           receiptId: receipt!.id,
           item: {
-            id: selectedItemId,
+            id: editingItemId,
             name: itemName.trim(),
             price: numericPrice,
             quantity: numericQuantity,
@@ -82,13 +148,30 @@ export default function ReceiptDetailsScreen() {
     setItemName('');
     setPrice('');
     setQuantity('');
-    setSelectedItemId(null);
+    setEditingItemId(null);
   };
 
   const totalAmount = useMemo(() => {
     if (!receipt) return 0;
     return receipt.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [receipt]);
+
+  const handlePrintPDF = async () => {
+    try {
+      setIsPrintingPDF(true);
+      await generateReceiptPDF(
+        receipt,
+        currencySymbol,
+        orgName || 'Mudir'
+      );
+      setSuccessMessage('PDF generated successfully!');
+      setSuccessDialogOpen(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsPrintingPDF(false);
+    }
+  };
 
   if (!receipt) {
     return (
@@ -100,24 +183,6 @@ export default function ReceiptDetailsScreen() {
       </View>
     );
   }
-
-  const handleDeleteItem = (itemId: string) => {
-    Alert.alert(
-      'Delete Item',
-      'Are you sure you want to remove this item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(removeReceiptItem({ receiptId: receipt.id, itemId }));
-            if (selectedItemId === itemId) setSelectedItemId(null);
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <>
@@ -138,29 +203,40 @@ export default function ReceiptDetailsScreen() {
           <Text className="flex-1 text-center text-2xl font-bold text-foreground" numberOfLines={1}>
             {receipt.customerName}
           </Text>
-          <View className="w-10" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onPress={handlePrintPDF}
+            disabled={isPrintingPDF}
+            className="-mr-3 mt-1">
+            {isPrintingPDF ? (
+              <ActivityIndicator size="small" />
+            ) : (
+              <Icon as={Share} size={24} className="text-foreground" />
+            )}
+          </Button>
         </View>
 
         <ScrollView className="flex-1" contentContainerClassName="pb-32 pt-2 px-5 gap-6">
           {/* Metadata Card */}
           <Animated.View entering={FadeInDown}>
-            <Card className="rounded-2xl border-0 bg-primary p-6 shadow-sm">
-              <Text className="text-sm font-semibold uppercase tracking-wider text-primary-foreground/80">
+            <Card className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+              <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Total Amount
               </Text>
-              <Text className="text-5xl font-black tracking-tighter text-primary-foreground mt-2">
+              <Text className="text-4xl font-black tracking-tighter text-foreground mt-1">
                 {currencySymbol}{totalAmount.toLocaleString()}
               </Text>
-              <View className="mt-6 flex-row justify-between">
+              <View className="mt-4 flex-row justify-between">
                  <View>
-                   <Text className="text-xs font-semibold text-primary-foreground/60">DATE</Text>
-                   <Text className="text-sm font-bold text-primary-foreground">
+                   <Text className="text-[10px] font-semibold text-muted-foreground">DATE</Text>
+                   <Text className="text-xs font-bold text-foreground">
                       {new Date(receipt.date).toLocaleDateString()}
                    </Text>
                  </View>
                  <View>
-                   <Text className="text-xs font-semibold text-primary-foreground/60 text-right">ITEMS</Text>
-                   <Text className="text-sm font-bold text-primary-foreground text-right">
+                   <Text className="text-[10px] font-semibold text-muted-foreground text-right">ITEMS</Text>
+                   <Text className="text-xs font-bold text-foreground text-right">
                       {receipt.items.length}
                    </Text>
                  </View>
@@ -177,13 +253,16 @@ export default function ReceiptDetailsScreen() {
               </View>
             ) : (
               receipt.items.map((item, index) => {
-                const isSelected = selectedItemId === item.id;
+                const isSelected = selectedIds.has(item.id);
                 return (
                 <Animated.View
                   key={item.id}
                   entering={createStaggeredAnimation(index).withInitialValues({ opacity: 0 })}
                   exiting={FadeOutUp}>
-                  <Pressable onPress={() => setSelectedItemId(isSelected ? null : item.id)}>
+                  <Pressable 
+                    delayLongPress={200}
+                    onLongPress={() => handleLongPress(item.id)}
+                    onPress={() => handlePress(item.id)}>
                     <Card className={`flex-row items-center justify-between rounded-2xl border-0 p-4 shadow-sm ${isSelected ? 'bg-secondary/30' : 'bg-card'}`}>
                       <View className="flex-1 pr-4">
                         <Text className="text-lg font-bold text-foreground" numberOfLines={1}>
@@ -212,42 +291,75 @@ export default function ReceiptDetailsScreen() {
           entering={FadeInDown.delay(300)}
           className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
           style={{ paddingBottom: insets.bottom + 6 }}>
-          <View className="h-14 w-14" />
           
-          {!selectedItemId ? (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => {
-                setItemName('');
-                setPrice('');
-                setQuantity('');
-                setIsAddItemModalOpen(true);
-              }}
-              className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
-              <Icon as={Plus} size={28} className="text-white dark:text-black" />
-            </TouchableOpacity>
-          ) : (
-            <Animated.View entering={FadeInDown} className="flex-row gap-4 pointer-events-auto">
+          {/* Edit Button */}
+          {isSelectionMode && selectedIds.size === 1 ? (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown} className="pointer-events-auto">
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => {
-                  const item = receipt.items.find(i => i.id === selectedItemId);
+                  const id = Array.from(selectedIds)[0];
+                  const item = receipt.items.find(i => i.id === id);
                   if (item) {
+                    setEditingItemId(item.id);
                     setItemName(item.name);
                     setPrice(item.price.toString());
                     setQuantity(item.quantity.toString());
                     setIsAddItemModalOpen(true);
                   }
+                  setSelectedIds(new Set());
                 }}
-                className="h-14 w-14 items-center justify-center rounded-full bg-blue-500 shadow-lg">
-                <Icon as={Edit2} size={24} className="text-white" />
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Pencil} size={24} className="text-white dark:text-black" />
               </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <View className="h-14 w-14" />
+          )}
+
+          {/* Add/Delete Buttons */}
+          {!isSelectionMode ? (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown} className="pointer-events-auto">
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => handleDeleteItem(selectedItemId)}
-                className="h-14 w-14 items-center justify-center rounded-full bg-destructive shadow-lg">
-                <Icon as={Trash2} size={24} className="text-destructive-foreground" />
+                onPress={() => {
+                  setEditingItemId(null);
+                  setItemName('');
+                  setPrice('');
+                  setQuantity('');
+                  setIsAddItemModalOpen(true);
+                }}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Plus} size={28} className="text-white dark:text-black" />
               </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown} className="pointer-events-auto">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                    <Icon as={Trash2} size={24} className="text-white dark:text-black" />
+                  </TouchableOpacity>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Items</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete {selectedIds.size} item(s)?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      <Text>Cancel</Text>
+                    </AlertDialogCancel>
+                    <AlertDialogAction onPress={handleBatchDelete}>
+                      <Text>Delete</Text>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </Animated.View>
           )}
         </Animated.View>
@@ -260,7 +372,7 @@ export default function ReceiptDetailsScreen() {
         transparent
         onRequestClose={() => {
            setIsAddItemModalOpen(false);
-           setSelectedItemId(null);
+           setEditingItemId(null);
         }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -269,19 +381,19 @@ export default function ReceiptDetailsScreen() {
           <View className="flex-1 justify-end bg-black/50">
             <Pressable className="absolute inset-0" onPress={() => {
                 setIsAddItemModalOpen(false);
-                setSelectedItemId(null);
+                setEditingItemId(null);
             }} />
             <View className="rounded-t-3xl bg-card pt-4 max-h-[85%]">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">
-                  {selectedItemId ? 'Edit Item' : 'New Item'}
+                  {editingItemId ? 'Edit Item' : 'New Item'}
                 </Text>
                 <Button
                   variant="ghost"
                   size="icon"
                   onPress={() => {
                      setIsAddItemModalOpen(false);
-                     setSelectedItemId(null);
+                     setEditingItemId(null);
                   }}
                   className="-mr-3">
                   <Icon as={X} size={24} className="text-foreground" />
@@ -333,7 +445,7 @@ export default function ReceiptDetailsScreen() {
                     className="w-full flex-row items-center justify-center gap-2 rounded-2xl h-14"
                     onPress={handleAddItem}>
                     <Icon as={Check} size={20} className="text-primary-foreground" />
-                    <Text className="text-lg font-bold text-primary-foreground">{selectedItemId ? 'Save Changes' : 'Add Item'}</Text>
+                    <Text className="text-lg font-bold text-primary-foreground">{editingItemId ? 'Save Changes' : 'Add Item'}</Text>
                   </Button>
                 </View>
               </ScrollView>
@@ -341,6 +453,23 @@ export default function ReceiptDetailsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Success Dialog */}
+      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Success</DialogTitle>
+            <DialogDescription>{successMessage}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button>
+                <Text>OK</Text>
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

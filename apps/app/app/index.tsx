@@ -46,10 +46,14 @@ export default function HomeScreen() {
   const settings = useSelector((state: RootState) => state.settings);
   const collections = useSelector((state: RootState) => state.inventory.collections);
   const ledgerEntries = useSelector((state: RootState) => state.ledger.entries);
+  const receipts = useSelector((state: RootState) => state.receipts.list);
   const currencySymbol = useSelector((state: RootState) => state.settings.userCurrency);
   const auth = useSelector((state: RootState) => state.auth);
 
   const totalItems = collections.reduce((acc, c) => acc + c.data.length, 0);
+  const totalOrgs = ledgerEntries.length;
+  const totalReceipts = receipts.length;
+
   const totalLedgerBalance = ledgerEntries.reduce((acc, entry) => {
     return (
       acc +
@@ -254,7 +258,7 @@ export default function HomeScreen() {
                         className="-ml-1 text-6xl font-black tracking-tighter text-foreground"
                         numberOfLines={1}
                         adjustsFontSizeToFit>
-                        {formatBalance(totalLedgerBalance)}
+                        {totalReceipts.toLocaleString()}
                       </Text>
                     </View>
 

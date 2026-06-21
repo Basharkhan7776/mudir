@@ -10,9 +10,9 @@ import {
 } from '@/lib/store/slices/ledgerSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useRouter, Link } from 'expo-router';
-import { Plus, Trash2, ChevronRight, Pencil, ArrowLeft } from 'lucide-react-native';
+import { Plus, Trash2, ChevronRight, Pencil, ArrowLeft, X, Check } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
-import { View, Pressable, TouchableOpacity } from 'react-native';
+import { View, Pressable, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOutUp,
@@ -33,14 +33,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,8 +71,8 @@ const LedgerListItem = React.memo(
               }`}>
               <View className="mr-4 items-center justify-center">
                 <View
-                  className={`h-2 w-2 rounded-full ${
-                    isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'
+                  className={`h-2 w-2 rounded-full transition-transform ${
+                    isSelected ? 'scale-150 bg-blue-500' : 'scale-100 bg-primary'
                   }`}
                 />
               </View>
@@ -362,38 +354,71 @@ export default function LedgerScreen() {
             </Animated.View>
           )}
         </Animated.View>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editingOrg ? 'Edit Organization' : 'New Organization'}</DialogTitle>
-              <DialogDescription>
-                {editingOrg
-                  ? "Make changes to the organization's profile here."
-                  : 'Add a new organization to your ledger.'}
-              </DialogDescription>
-            </DialogHeader>
-            <View className="gap-4 py-4">
-              <View className="gap-2">
-                <Text className="text-sm font-medium">Name</Text>
-                <Input value={orgName} onChangeText={setOrgName} placeholder="Organization Name" />
-              </View>
-              <View className="gap-2">
-                <Text className="text-sm font-medium">Phone</Text>
-                <Input
-                  value={orgPhone}
-                  onChangeText={setOrgPhone}
-                  placeholder="Phone Number"
-                  keyboardType="phone-pad"
-                />
+        <Modal
+          visible={isDialogOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={closeDialog}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            className="flex-1"
+          >
+            <View className="flex-1 justify-end bg-black/50">
+              <Pressable className="absolute inset-0" onPress={closeDialog} />
+              <View className="rounded-t-3xl bg-card pt-4 max-h-[85%]">
+                <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
+                  <Text className="text-xl font-bold text-foreground">
+                    {editingOrg ? 'Edit Organization' : 'New Organization'}
+                  </Text>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onPress={closeDialog}
+                    className="-mr-3">
+                    <Icon as={X} size={24} className="text-foreground" />
+                  </Button>
+                </View>
+
+                <ScrollView className="px-5 mt-4" contentContainerClassName="gap-6" showsVerticalScrollIndicator={false}>
+                  <View className="gap-2">
+                    <Text className="ml-1 text-sm font-semibold uppercase text-muted-foreground">
+                      Name *
+                    </Text>
+                    <Input
+                      value={orgName}
+                      onChangeText={setOrgName}
+                      placeholder="Organization Name"
+                      className="h-14 rounded-2xl bg-secondary/50 px-5 text-lg"
+                    />
+                  </View>
+
+                  <View className="gap-2">
+                    <Text className="ml-1 text-sm font-semibold uppercase text-muted-foreground">
+                      Phone Number
+                    </Text>
+                    <Input
+                      value={orgPhone}
+                      onChangeText={setOrgPhone}
+                      placeholder="Phone Number"
+                      keyboardType="phone-pad"
+                      className="h-14 rounded-2xl bg-secondary/50 px-5 text-lg"
+                    />
+                  </View>
+                  
+                  <View className="mt-2" style={{ paddingBottom: Math.max(insets.bottom, 20) }}>
+                    <Button
+                      size="lg"
+                      className="w-full flex-row items-center justify-center gap-2 rounded-2xl h-14"
+                      onPress={handleSaveOrg}>
+                      <Icon as={Check} size={20} className="text-primary-foreground" />
+                      <Text className="text-lg font-bold text-primary-foreground">{editingOrg ? 'Save Changes' : 'Create Organization'}</Text>
+                    </Button>
+                  </View>
+                </ScrollView>
               </View>
             </View>
-            <DialogFooter>
-              <Button onPress={handleSaveOrg}>
-                <Text>{editingOrg ? 'Save Changes' : 'Create Organization'}</Text>
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </KeyboardAvoidingView>
+        </Modal>
       </View>
     </>
   );

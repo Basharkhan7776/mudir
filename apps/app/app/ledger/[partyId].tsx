@@ -19,16 +19,7 @@ import {
 } from '@/lib/store/slices/ledgerSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import {
-  ArrowLeft,
-  Printer,
-  MoreVertical,
-  Edit,
-  Trash2,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Plus,
-} from 'lucide-react-native';
+import { ArrowLeft, Share, Trash2, ArrowUpRight, ArrowDownLeft, Plus } from 'lucide-react-native';
 import React, { useState, useMemo, useRef } from 'react';
 import {
   FlatList,
@@ -44,14 +35,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useColorScheme } from 'nativewind';
 import { generateLedgerPDF } from '@/lib/pdfGenerator';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 export default function PartyScreen() {
   const { partyId } = useLocalSearchParams<{ partyId: string }>();
@@ -81,9 +64,6 @@ export default function PartyScreen() {
   // Dialogs
   const [isEditingOrg, setIsEditingOrg] = useState(false);
   const [addEntryModalOpen, setAddEntryModalOpen] = useState(false);
-  const [editedOrgName, setEditedOrgName] = useState(entry?.organization?.name ?? '');
-  const [editedOrgPhone, setEditedOrgPhone] = useState(entry?.organization?.phone ?? '');
-  const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
@@ -195,26 +175,6 @@ export default function PartyScreen() {
     }
   };
 
-  const handleDeleteOrg = () => {
-    if (navigation.canGoBack()) router.back();
-    else router.replace('/ledger');
-    setTimeout(() => dispatch(deleteOrganization(partyId)), 1000);
-  };
-
-  const handleSaveOrganization = () => {
-    if (!editedOrgName.trim()) return;
-    dispatch(
-      updateOrganization({
-        organizationId: partyId,
-        updates: {
-          name: editedOrgName.trim(),
-          phone: editedOrgPhone.trim() || undefined,
-        },
-      })
-    );
-    setIsEditingOrg(false);
-  };
-
   const handlePrintPDF = async () => {
     try {
       setIsPrintingPDF(true);
@@ -260,38 +220,13 @@ export default function PartyScreen() {
             </View>
           </View>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                {isPrintingPDF ? (
-                  <ActivityIndicator size="small" />
-                ) : (
-                  <Icon as={MoreVertical} size={24} className="text-foreground" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onPress={handlePrintPDF}>
-                <Icon as={Printer} size={16} className="mr-2 text-foreground" />
-                <Text>Save PDF</Text>
-              </DropdownMenuItem>
-              <DropdownMenuItem onPress={() => setIsEditingOrg(true)}>
-                <Icon as={Edit} size={16} className="mr-2 text-foreground" />
-                <Text>Edit Name</Text>
-              </DropdownMenuItem>
-              {isSelectionMode && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onPress={handleDeleteSelected}>
-                    <Icon as={Trash2} size={16} className="mr-2 text-destructive" />
-                    <Text className="text-destructive">Delete Selected ({selectedIds.size})</Text>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="ghost" size="icon" onPress={handlePrintPDF} disabled={isPrintingPDF}>
+            {isPrintingPDF ? (
+              <ActivityIndicator size="small" />
+            ) : (
+              <Icon as={Share} size={24} className="text-foreground" />
+            )}
+          </Button>
         </View>
 
         {/* Content */}
@@ -389,12 +324,23 @@ export default function PartyScreen() {
         <Animated.View
           entering={FadeInDown.delay(500)}
           className="absolute bottom-0 left-0 right-0 px-6 pb-6">
-          <Pressable
-            onPress={() => setAddEntryModalOpen(true)}
-            className="h-14 flex-row items-center justify-center gap-2 rounded-full bg-black shadow-lg dark:bg-white">
-            <Icon as={Plus} size={24} className="text-white dark:text-black" />
-            <Text className="text-lg font-bold text-white dark:text-black">Add Entry </Text>
-          </Pressable>
+          {!isSelectionMode ? (
+            <Pressable
+              onPress={() => setAddEntryModalOpen(true)}
+              className="h-14 flex-row items-center justify-center gap-2 rounded-full bg-black shadow-lg dark:bg-white">
+              <Icon as={Plus} size={24} className="text-white dark:text-black" />
+              <Text className="text-lg font-bold text-white dark:text-black">Add Entry </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleDeleteSelected}
+              className="h-14 flex-row items-center justify-center gap-2 rounded-full bg-black shadow-lg dark:bg-white">
+              <Icon as={Trash2} size={24} className="text-white dark:text-black" />
+              <Text className="text-lg font-bold text-white dark:text-black">
+                Delete Selected ({selectedIds.size})
+              </Text>
+            </Pressable>
+          )}
         </Animated.View>
 
         {/* Add Entry Modal */}
@@ -457,57 +403,6 @@ export default function PartyScreen() {
             </KeyboardAvoidingView>
           </View>
         </Modal>
-
-        {/* Edit Organization Dialog */}
-        <Dialog open={isEditingOrg} onOpenChange={setIsEditingOrg}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Organization</DialogTitle>
-            </DialogHeader>
-            <View className="gap-4 py-4">
-              <View className="gap-2">
-                <Text className="text-sm font-medium">Name</Text>
-                <Input
-                  value={editedOrgName}
-                  onChangeText={setEditedOrgName}
-                  placeholder="Organization Name"
-                />
-              </View>
-              <View className="gap-2">
-                <Text className="text-sm font-medium">Phone</Text>
-                <Input
-                  value={editedOrgPhone}
-                  onChangeText={setEditedOrgPhone}
-                  placeholder="Phone Number"
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-            <DialogFooter>
-              <Button onPress={handleSaveOrganization}>
-                <Text>Save</Text>
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation */}
-        <Dialog open={deleteOrgOpen} onOpenChange={setDeleteOrgOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Party?</DialogTitle>
-              <DialogDescription>This cannot be undone.</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onPress={() => setDeleteOrgOpen(false)}>
-                <Text>Cancel</Text>
-              </Button>
-              <Button variant="destructive" onPress={handleDeleteOrg}>
-                <Text>Delete</Text>
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Success Dialog */}
         <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>

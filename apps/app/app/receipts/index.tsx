@@ -66,8 +66,8 @@ const ReceiptListItem = React.memo(
               <View className="flex-row items-center flex-1">
                 <View className="mr-4 items-center justify-center">
                   <View
-                    className={`h-2 w-2 rounded-full ${
-                      isSelected ? 'scale-150 bg-blue-500' : 'bg-primary'
+                    className={`h-2 w-2 rounded-full transition-transform ${
+                      isSelected ? 'scale-150 bg-blue-500' : 'scale-100 bg-primary'
                     }`}
                   />
                 </View>

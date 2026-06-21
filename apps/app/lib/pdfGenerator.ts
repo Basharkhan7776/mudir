@@ -1,5 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Transaction, Organization } from './types';
 
 /**
@@ -27,9 +28,16 @@ export async function generateLedgerPDF(
 
     const { uri } = await Print.printToFileAsync({ html });
 
+    const pdfName = `${organization.name}_Ledger.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const newUri = `${FileSystem.documentDirectory}${pdfName}`;
+    await FileSystem.copyAsync({
+      from: uri,
+      to: newUri,
+    });
+
     // Share the PDF
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
+      await Sharing.shareAsync(newUri, {
         mimeType: 'application/pdf',
         dialogTitle: `${organization.name} - Ledger`,
         UTI: 'com.adobe.pdf',
@@ -408,3 +416,317 @@ function generateLedgerHTML(
     </html>
   `;
 }
+
+/**
+ * Generate PDF for a receipt
+ */
+export async function generateReceiptPDF(
+  receipt: any,
+  currency: string = '₹',
+  orgName: string = 'Mudir'
+): Promise<void> {
+  try {
+    const html = generateReceiptHTML(receipt, currency, orgName);
+    const { uri } = await Print.printToFileAsync({ html });
+
+    const pdfName = `${receipt.customerName}_Receipt.pdf`.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const newUri = `${FileSystem.documentDirectory}${pdfName}`;
+    await FileSystem.copyAsync({
+      from: uri,
+      to: newUri,
+    });
+
+    // Share the PDF
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(newUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Receipt - ${receipt.customerName}`,
+        UTI: 'com.adobe.pdf',
+      });
+    } else {
+      console.error('Sharing is not available on this platform');
+    }
+  } catch (error) {
+    console.error('Error generating receipt PDF:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate HTML for receipt PDF
+ */
+function generateReceiptHTML(receipt: any, currency: string, orgName: string): string {
+  const currentDate = new Date().toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const receiptDate = new Date(receipt.date).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const totalAmount = receipt.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+
+  const itemRows = receipt.items
+    .map(
+      (item: any) => `
+    <tr>
+      <td>${item.name}</td>
+      <td class="amount">${item.quantity}</td>
+      <td class="amount">${formatCurrency(item.price, currency)}</td>
+      <td class="amount">${formatCurrency(item.price * item.quantity, currency)}</td>
+    </tr>
+  `
+    )
+    .join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Receipt - ${receipt.customerName}</title>
+      <style>
+        @page {
+          size: A4;
+          margin: 15mm;
+        }
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 10px;
+          color: #000;
+          line-height: 1.3;
+          padding: 0;
+        }
+
+        .header {
+          margin-bottom: 15px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 8px;
+        }
+
+        .org-name {
+          font-size: 14px;
+          font-weight: bold;
+          color: #000;
+          margin-bottom: 3px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .document-title {
+          font-size: 11px;
+          color: #000;
+          font-weight: bold;
+        }
+
+        .info-section {
+          margin-bottom: 12px;
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .party-info {
+          border: 1px solid #000;
+          padding: 8px 10px;
+          flex: 1;
+          margin-right: 10px;
+        }
+
+        .party-name {
+          font-size: 12px;
+          font-weight: bold;
+          color: #000;
+          margin-bottom: 4px;
+        }
+
+        .party-details {
+          color: #000;
+          font-size: 9px;
+          line-height: 1.4;
+        }
+
+        .receipt-info {
+          border: 1px solid #000;
+          padding: 8px 10px;
+          width: 200px;
+        }
+
+        .receipt-info div {
+          margin-bottom: 4px;
+        }
+
+        .table-container {
+          page-break-inside: auto;
+          margin-bottom: 12px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          border: 1px solid #000;
+          page-break-inside: auto;
+        }
+
+        thead {
+          display: table-header-group;
+        }
+
+        tbody {
+          display: table-row-group;
+        }
+
+        th {
+          padding: 6px 5px;
+          text-align: left;
+          font-weight: bold;
+          color: #000;
+          font-size: 9px;
+          text-transform: uppercase;
+          border-bottom: 1.5px solid #000;
+          border-right: 1px solid #000;
+          background: #fff;
+        }
+
+        th:last-child {
+          border-right: none;
+        }
+
+        tr {
+          page-break-inside: avoid;
+          page-break-after: auto;
+        }
+
+        td {
+          padding: 5px;
+          border-bottom: 0.5px solid #ccc;
+          border-right: 1px solid #ccc;
+          font-size: 9px;
+          color: #000;
+          vertical-align: top;
+        }
+
+        td:last-child {
+          border-right: none;
+        }
+
+        tbody tr:last-child td {
+          border-bottom: 1px solid #000;
+        }
+
+        .amount {
+          text-align: right;
+          font-weight: normal;
+          font-family: 'Courier New', monospace;
+        }
+
+        .summary {
+          border: 1px solid #000;
+          padding: 8px 10px;
+          margin-top: 10px;
+          page-break-inside: avoid;
+          width: 250px;
+          margin-left: auto;
+        }
+
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 4px 0;
+          font-size: 10px;
+          font-weight: bold;
+        }
+
+        .summary-label {
+          color: #000;
+        }
+
+        .summary-value {
+          font-weight: bold;
+          font-family: 'Courier New', monospace;
+          color: #000;
+        }
+
+        .footer {
+          margin-top: 15px;
+          padding-top: 8px;
+          border-top: 1px solid #000;
+          text-align: center;
+          color: #666;
+          font-size: 8px;
+          page-break-inside: avoid;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="org-name">${orgName}</div>
+        <div class="document-title">RECEIPT</div>
+      </div>
+
+      <div class="info-section">
+        <div class="party-info">
+          <div class="party-name">Billed To:</div>
+          <div class="party-name" style="margin-top: 4px;">${receipt.customerName}</div>
+          <div class="party-details">
+            ${receipt.phone ? `<div>Phone: ${receipt.phone}</div>` : ''}
+          </div>
+        </div>
+        <div class="receipt-info">
+          <div><strong>Date:</strong> ${receiptDate}</div>
+          ${receipt.description ? `<div><strong>Remarks:</strong> ${receipt.description}</div>` : ''}
+        </div>
+      </div>
+
+      ${
+        receipt.items.length > 0
+          ? `
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50%;">ITEM</th>
+              <th style="width: 15%; text-align: right;">QTY</th>
+              <th style="width: 15%; text-align: right;">PRICE</th>
+              <th style="width: 20%; text-align: right;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="summary">
+        <div class="summary-row">
+          <span class="summary-label">Total Amount</span>
+          <span class="summary-value">${formatCurrency(totalAmount, currency)}</span>
+        </div>
+      </div>
+      `
+          : `
+      <div style="text-align: center; padding: 20px;">
+        No items in this receipt.
+      </div>
+      `
+      }
+
+      <div class="footer">
+        Generated on ${currentDate}
+      </div>
+    </body>
+    </html>
+  `;
+}
+
