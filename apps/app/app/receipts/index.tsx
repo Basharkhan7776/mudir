@@ -3,10 +3,10 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { deleteReceipt, addReceipt } from '@/lib/store/slices/receiptsSlice';
+import { deleteReceipt, addReceipt, updateReceipt } from '@/lib/store/slices/receiptsSlice';
 import { RootState } from '@/lib/store';
 import { Stack, useRouter, Link } from 'expo-router';
-import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X } from 'lucide-react-native';
+import { Plus, Trash2, ChevronRight, ArrowLeft, Check, X, Pencil } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
 import { View, Pressable, TouchableOpacity, Modal, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import Animated, {
@@ -105,9 +105,34 @@ export default function ReceiptsScreen() {
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [description, setDescription] = useState('');
+
+  const openCreateModal = () => {
+    setEditingReceiptId(null);
+    setCustomerName('');
+    setPhone('');
+    setDescription('');
+    setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (receipt: Receipt) => {
+    setEditingReceiptId(receipt.id);
+    setCustomerName(receipt.customerName);
+    setPhone(receipt.phone || '');
+    setDescription(receipt.description || '');
+    setIsCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setEditingReceiptId(null);
+    setCustomerName('');
+    setPhone('');
+    setDescription('');
+  };
 
   const handleCreate = () => {
     if (!customerName.trim()) {
@@ -115,29 +140,42 @@ export default function ReceiptsScreen() {
       return;
     }
 
-    const newReceiptId = Date.now().toString();
+    if (editingReceiptId) {
+      const existingReceipt = receipts.find((r) => r.id === editingReceiptId);
+      if (existingReceipt) {
+        dispatch(
+          updateReceipt({
+            ...existingReceipt,
+            customerName: customerName.trim(),
+            phone: phone.trim(),
+            description: description.trim(),
+            updatedAt: new Date().toISOString(), // if you have this property
+          })
+        );
+      }
+      closeCreateModal();
+    } else {
+      const newReceiptId = Date.now().toString();
 
-    dispatch(
-      addReceipt({
-        id: newReceiptId,
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        date: new Date().toISOString(),
-        description: description.trim(),
-        items: [],
-        createdAt: new Date().toISOString(),
-      })
-    );
+      dispatch(
+        addReceipt({
+          id: newReceiptId,
+          customerName: customerName.trim(),
+          phone: phone.trim(),
+          date: new Date().toISOString(),
+          description: description.trim(),
+          items: [],
+          createdAt: new Date().toISOString(),
+        })
+      );
 
-    setIsCreateModalOpen(false);
-    setCustomerName('');
-    setPhone('');
-    setDescription('');
-    
-    // Navigate to new receipt
-    setTimeout(() => {
-      router.push(`/receipts/${newReceiptId}`);
-    }, 100);
+      closeCreateModal();
+      
+      // Navigate to new receipt
+      setTimeout(() => {
+        router.push(`/receipts/${newReceiptId}`);
+      }, 100);
+    }
   };
 
   const toggleSelection = (id: string) => {
@@ -271,14 +309,34 @@ export default function ReceiptsScreen() {
           entering={FadeInDown.delay(500)}
           className="pointer-events-box-none absolute bottom-0 left-0 right-0 flex-row items-end justify-between px-6 pb-6"
           style={{ paddingBottom: insets.bottom + 6 }}>
-          <View className="h-14 w-14" />
+          
+          {/* Edit Button */}
+          {isSelectionMode && selectedIds.size === 1 ? (
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown} className="pointer-events-auto">
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  const id = Array.from(selectedIds)[0];
+                  const receipt = receipts.find((r) => r.id === id);
+                  if (receipt) {
+                    openEditModal(receipt);
+                  }
+                  setSelectedIds(new Set());
+                }}
+                className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
+                <Icon as={Pencil} size={24} className="text-white dark:text-black" />
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <View className="h-14 w-14" />
+          )}
 
           {/* Add/Delete Buttons */}
           {!isSelectionMode ? (
-            <Animated.View entering={FadeInDown} exiting={FadeOutDown}>
+            <Animated.View entering={FadeInDown} exiting={FadeOutDown} className="pointer-events-auto">
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => setIsCreateModalOpen(true)}
+                onPress={openCreateModal}
                 className="h-14 w-14 items-center justify-center rounded-full bg-black shadow-lg dark:bg-white">
                 <Icon as={Plus} size={28} className="text-white dark:text-black" />
               </TouchableOpacity>
@@ -320,22 +378,22 @@ export default function ReceiptsScreen() {
         visible={isCreateModalOpen}
         animationType="slide"
         transparent
-        onRequestClose={() => setIsCreateModalOpen(false)}>
+        onRequestClose={closeCreateModal}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1"
         >
           <View className="flex-1 justify-end bg-black/50">
-            <Pressable className="absolute inset-0" onPress={() => setIsCreateModalOpen(false)} />
+            <Pressable className="absolute inset-0" onPress={closeCreateModal} />
             <View className="rounded-t-3xl bg-card pt-4 max-h-[85%]">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">
-                  New Receipt
+                  {editingReceiptId ? 'Edit Receipt' : 'New Receipt'}
                 </Text>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onPress={() => setIsCreateModalOpen(false)}
+                  onPress={closeCreateModal}
                   className="-mr-3">
                   <Icon as={X} size={24} className="text-foreground" />
                 </Button>
@@ -388,7 +446,7 @@ export default function ReceiptsScreen() {
                     className="w-full flex-row items-center justify-center gap-2 rounded-2xl h-14"
                     onPress={handleCreate}>
                     <Icon as={Check} size={20} className="text-primary-foreground" />
-                    <Text className="text-lg font-bold text-primary-foreground">Create</Text>
+                    <Text className="text-lg font-bold text-primary-foreground">{editingReceiptId ? 'Save Changes' : 'Create'}</Text>
                   </Button>
                 </View>
               </ScrollView>
