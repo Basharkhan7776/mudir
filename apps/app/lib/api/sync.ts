@@ -183,7 +183,10 @@ export const syncData = async (localData: DatabaseSchema): Promise<SyncResult> =
   const localLastUpdate = localData.meta?.exportDate || new Date(0).toISOString();
   const remoteLastUpdate = status.lastSync || new Date(0).toISOString();
 
-  const hasLocalData = localData.collections?.length > 0 || localData.ledger?.length > 0;
+  const hasLocalData =
+    localData.collections?.length > 0 ||
+    localData.ledger?.length > 0 ||
+    localData.receipts?.length > 0;
   const hasRemoteData = status.hasData;
 
   if (!hasRemoteData && hasLocalData) {

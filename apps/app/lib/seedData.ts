@@ -430,5 +430,43 @@ export const seedData: DatabaseSchema = {
         },
       ],
     },
+    {
+      id: 'receipt2',
+      customerName: 'Sarah Smith',
+      phone: '+91 99887 76655',
+      date: new Date('2024-12-10').toISOString(),
+      description: 'Electronics purchase',
+      createdAt: new Date('2024-12-10').toISOString(),
+      items: [
+        {
+          id: 'item3',
+          name: 'AirPods Pro',
+          price: 24900,
+          quantity: 1,
+        },
+      ],
+    },
+    {
+      id: 'receipt3',
+      customerName: 'Amit Kumar',
+      phone: '+91 91234 56789',
+      date: new Date('2024-12-15').toISOString(),
+      description: 'Winter clothing',
+      createdAt: new Date('2024-12-15').toISOString(),
+      items: [
+        {
+          id: 'item4',
+          name: 'Hoodie (Gray, XL)',
+          price: 1999,
+          quantity: 2,
+        },
+        {
+          id: 'item5',
+          name: 'Denim Jeans (Black, L)',
+          price: 1499,
+          quantity: 1,
+        },
+      ],
+    },
   ],
 };

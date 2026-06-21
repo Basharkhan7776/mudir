@@ -48,6 +48,7 @@ import {
 } from '@/lib/store/slices/settingsSlice';
 import { setCollections } from '@/lib/store/slices/inventorySlice';
 import { setLedger } from '@/lib/store/slices/ledgerSlice';
+import { setReceipts } from '@/lib/store/slices/receiptsSlice';
 import { exportData, importData } from '@/lib/utils/export-import';
 import { Icon } from '@/components/ui/icon';
 import { seedDatabase, clearDatabase, getSeedData } from '@/lib/seed';
@@ -76,6 +77,7 @@ export default function SettingsScreen() {
   const settings = useSelector((state: RootState) => state.settings);
   const inventory = useSelector((state: RootState) => state.inventory);
   const ledger = useSelector((state: RootState) => state.ledger);
+  const receipts = useSelector((state: RootState) => state.receipts);
   const auth = useSelector((state: RootState) => state.auth);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -156,6 +158,7 @@ export default function SettingsScreen() {
         },
         collections: inventory.collections,
         ledger: ledger.entries,
+        receipts: receipts.list,
       };
 
       const result = await syncData(localData);
@@ -166,6 +169,7 @@ export default function SettingsScreen() {
           dispatch(setSettings(result.data.meta));
           dispatch(setCollections(result.data.collections));
           dispatch(setLedger(result.data.ledger));
+          dispatch(setReceipts(result.data.receipts || []));
           setSuccessMessage('Data synced from cloud');
         } else if (result.action === 'pushed') {
           setSuccessMessage('Data synced to cloud');
@@ -219,6 +223,7 @@ export default function SettingsScreen() {
       dispatch(setSettings(data.meta));
       dispatch(setCollections(data.collections));
       dispatch(setLedger(data.ledger));
+      dispatch(setReceipts(data.receipts || []));
       setSuccessMessage('Data imported successfully');
       setSuccessDialogOpen(true);
     }

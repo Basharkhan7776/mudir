@@ -30,6 +30,7 @@ import { RootState } from '@/lib/store';
 import { completeOnboarding, setSettings } from '@/lib/store/slices/settingsSlice';
 import { setCollections } from '@/lib/store/slices/inventorySlice';
 import { setLedger } from '@/lib/store/slices/ledgerSlice';
+import { setReceipts } from '@/lib/store/slices/receiptsSlice';
 import { SearchModal } from '@/components/search-modal';
 import { onAuthChange, syncData, environment } from '@/lib/api';
 import { setUser, setLastSync } from '@/lib/store/slices/authSlice';
@@ -89,6 +90,7 @@ export default function HomeScreen() {
         },
         collections: collections,
         ledger: ledgerEntries,
+        receipts: receipts,
       };
 
       const result = await syncData(localData);
@@ -97,6 +99,7 @@ export default function HomeScreen() {
         dispatch(setSettings(result.data.meta));
         dispatch(setCollections(result.data.collections));
         dispatch(setLedger(result.data.ledger));
+        dispatch(setReceipts(result.data.receipts || []));
       }
 
       if (result.success) {

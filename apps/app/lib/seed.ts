@@ -27,6 +27,7 @@ export async function clearDatabase() {
       },
       collections: [],
       ledger: [],
+      receipts: [],
     });
     console.log('[Seed] Database cleared successfully!');
     return true;
