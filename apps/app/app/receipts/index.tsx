@@ -379,13 +379,10 @@ export default function ReceiptsScreen() {
         animationType="slide"
         transparent
         onRequestClose={closeCreateModal}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
-        >
           <View className="flex-1 justify-end bg-black/50">
             <Pressable className="absolute inset-0" onPress={closeCreateModal} />
-            <View className="rounded-t-3xl bg-card pt-4 max-h-[85%]">
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View className="rounded-t-3xl bg-card pt-4 pb-4">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">
                   {editingReceiptId ? 'Edit Receipt' : 'New Receipt'}
@@ -399,7 +396,7 @@ export default function ReceiptsScreen() {
                 </Button>
               </View>
 
-              <ScrollView className="px-5 mt-4" contentContainerClassName="gap-6" showsVerticalScrollIndicator={false}>
+              <View className="px-5 mt-4 gap-6">
                 <View className="gap-2">
                   <Text className="ml-1 text-sm font-semibold uppercase text-muted-foreground">
                     Customer Name *
@@ -449,10 +446,10 @@ export default function ReceiptsScreen() {
                     <Text className="text-lg font-bold text-primary-foreground">{editingReceiptId ? 'Save Changes' : 'Create'}</Text>
                   </Button>
                 </View>
-              </ScrollView>
+              </View>
             </View>
+            </KeyboardAvoidingView>
           </View>
-        </KeyboardAvoidingView>
       </Modal>
     </>
   );
