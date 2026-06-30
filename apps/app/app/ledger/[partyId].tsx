@@ -34,6 +34,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useColorScheme } from 'nativewind';
 import { generateLedgerPDF } from '@/lib/pdfGenerator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 export default function PartyScreen() {
@@ -56,6 +57,7 @@ export default function PartyScreen() {
   const dispatch = useDispatch();
   const { colorScheme } = useColorScheme();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const [isPrintingPDF, setIsPrintingPDF] = useState(false);
   const [amount, setAmount] = useState('');
@@ -351,8 +353,8 @@ export default function PartyScreen() {
           onRequestClose={() => setAddEntryModalOpen(false)}>
           <View className="flex-1 justify-end bg-black/50">
             <Pressable className="absolute inset-0" onPress={() => setAddEntryModalOpen(false)} />
-            <KeyboardAvoidingView behavior="padding">
-              <View className="rounded-t-3xl bg-card p-6 pb-10">
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <View className="rounded-t-3xl bg-card p-6" style={{ paddingBottom: Math.max(insets.bottom, 20) }}>
                 {/* Send/Receive Buttons */}
                 <View className="mb-6 flex-row gap-4">
                   <Pressable
@@ -369,36 +371,38 @@ export default function PartyScreen() {
                   </Pressable>
                 </View>
 
-                {/* Amount Input */}
-                <View className="mb-4 justify-center rounded-2xl bg-muted px-4 py-3">
-                  <Text className="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground opacity-70">
-                    AMOUNT
-                  </Text>
-                  <View className="flex-row items-center">
-                    <Text className="mr-1 text-lg font-bold text-muted-foreground">
-                      {currencySymbol}
+                <ScrollView keyboardShouldPersistTaps="handled">
+                  {/* Amount Input */}
+                  <View className="mb-4 justify-center rounded-2xl bg-muted px-4 py-3">
+                    <Text className="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground opacity-70">
+                      AMOUNT
                     </Text>
+                    <View className="flex-row items-center">
+                      <Text className="mr-1 text-lg font-bold text-muted-foreground">
+                        {currencySymbol}
+                      </Text>
+                      <Input
+                        className="h-8 flex-1 border-0 bg-transparent p-0 text-xl font-bold leading-tight"
+                        placeholder="0.00"
+                        keyboardType="numeric"
+                        value={amount}
+                        onChangeText={setAmount}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Description Input */}
+                  <View className="mb-4 justify-center rounded-2xl bg-muted px-4 py-3">
                     <Input
-                      className="h-8 flex-1 border-0 bg-transparent p-0 text-xl font-bold leading-tight"
-                      placeholder="0.00"
-                      keyboardType="numeric"
-                      value={amount}
-                      onChangeText={setAmount}
+                      className="h-14 border-0 bg-transparent p-0 text-base leading-tight"
+                      placeholder="Add description..."
+                      value={description}
+                      onChangeText={setDescription}
+                      multiline
+                      textAlignVertical="center"
                     />
                   </View>
-                </View>
-
-                {/* Description Input */}
-                <View className="mb-4 justify-center rounded-2xl bg-muted px-4 py-3">
-                  <Input
-                    className="h-14 border-0 bg-transparent p-0 text-base leading-tight"
-                    placeholder="Add description..."
-                    value={description}
-                    onChangeText={setDescription}
-                    multiline
-                    textAlignVertical="center"
-                  />
-                </View>
+                </ScrollView>
               </View>
             </KeyboardAvoidingView>
           </View>

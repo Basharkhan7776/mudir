@@ -381,7 +381,7 @@ export default function ReceiptsScreen() {
         onRequestClose={closeCreateModal}>
           <View className="flex-1 justify-end bg-black/50">
             <Pressable className="absolute inset-0" onPress={closeCreateModal} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View className="rounded-t-3xl bg-card pt-4 pb-4">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">

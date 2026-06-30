@@ -16,7 +16,7 @@
     "android": {
       "package": "com.mudir.app",
       "versionCode": 1,
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
