@@ -94,6 +94,7 @@ export default function HomeScreen() {
       };
 
       const result = await syncData(localData);
+      console.log('[Home] Auto-sync result:', result);
 
       if (result.success && result.action === 'pulled' && result.data) {
         dispatch(setSettings(result.data.meta));
@@ -104,6 +105,8 @@ export default function HomeScreen() {
 
       if (result.success) {
         dispatch(setLastSync(new Date().toISOString()));
+      } else {
+        console.log('[Home] Auto-sync did not succeed:', result.message);
       }
     } catch (error) {
       console.error('[Home] Auto-sync error:', error);

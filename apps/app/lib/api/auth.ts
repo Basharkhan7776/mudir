@@ -106,8 +106,19 @@ export const getAuthToken = async (): Promise<string | null> => {
 /**
  * Make an authenticated fetch call that includes Better Auth cookies.
  * Use this for sync API calls instead of manual Bearer tokens.
+ *
+ * Note: returns better-fetch shape { data, error } (not native Response).
+ * Callers must handle accordingly. We force no-cache to avoid 304s on dynamic sync endpoints.
  */
-export const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+export const authFetch = async (url: string, options: RequestInit = {}): Promise<any> => {
+  const merged = {
+    cache: 'no-store' as any,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      ...(options.headers || {}),
+    },
+    ...options,
+  };
   // @ts-ignore - authClient.$fetch is the internal fetch with cookie headers
-  return authClient.$fetch(url, options);
+  return authClient.$fetch(url, merged);
 };

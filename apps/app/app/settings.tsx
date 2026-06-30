@@ -185,11 +185,12 @@ export default function SettingsScreen() {
         });
         dispatch(setLastSync(status.lastSync));
       } else {
-        Alert.alert('Sync Failed', result.message);
+        console.log('[Settings] Sync failed result:', result);
+        Alert.alert('Sync Failed', result.message || 'Unknown sync error');
       }
     } catch (error) {
       console.error('[Settings] Sync error:', error);
-      Alert.alert('Sync Failed', 'An error occurred while syncing data');
+      Alert.alert('Sync Failed', (error as any)?.message || 'An error occurred while syncing data');
     } finally {
       setIsSyncingLocal(false);
       dispatch(setIsSyncing(false));

@@ -54,19 +54,25 @@ export const getSyncStatus = async (): Promise<{
       return { hasData: false, lastSync: null, dataHash: null, dataSize: null };
     }
 
-    const response = await authFetch(`${env.apiUrl}/api/sync/status`);
-    console.log('[Sync] getStatus response:', response);
+    const res = await authFetch(`${env.apiUrl}/api/sync/status`, {
+      cache: 'no-store' as any,
+      headers: { 'Cache-Control': 'no-cache, no-store' },
+    });
+    console.log('[Sync] getStatus result:', res);
 
-    if (!response.ok) {
+    if (res.error || !res.data) {
+      const errMsg = res.error?.message || res.error?.error || 'Failed to get status';
+      console.log('[Sync] getStatus failed:', errMsg);
       return { hasData: false, lastSync: null, dataHash: null, dataSize: null };
     }
 
-    const data = await response.json();
+    const payload = res.data;
+    console.log('[Sync] getStatus payload hasData=', payload.hasData, 'lastSync=', payload.lastSync);
     return {
-      hasData: data.hasData,
-      lastSync: data.lastSync,
-      dataHash: data.dataHash,
-      dataSize: data.dataSize,
+      hasData: payload.hasData,
+      lastSync: payload.lastSync,
+      dataHash: payload.dataHash,
+      dataSize: payload.dataSize,
     };
   } catch (error) {
     console.error('[Sync] Get status error:', error);
@@ -91,22 +97,27 @@ export const pullData = async (): Promise<SyncResult> => {
       return { success: false, message: 'Not authenticated' };
     }
 
-    const response = await authFetch(`${env.apiUrl}/api/sync`);
+    const res = await authFetch(`${env.apiUrl}/api/sync`, {
+      cache: 'no-store' as any,
+      headers: { 'Cache-Control': 'no-cache, no-store' },
+    });
+    console.log('[Sync] pull result:', res);
 
-    if (!response.ok) {
-      return { success: false, message: 'Failed to fetch data' };
+    if (res.error || !res.data) {
+      const msg = res.error?.message || res.error?.error || 'Failed to fetch data';
+      return { success: false, message: msg };
     }
 
-    const data = await response.json();
+    const payload = res.data;
 
-    if (!data.data) {
-      return { success: false, message: 'No data found' };
+    if (!payload.data) {
+      return { success: false, message: payload.message || 'No data found' };
     }
 
     return {
       success: true,
-      message: 'Data pulled successfully',
-      data: data.data,
+      message: payload.message || 'Data pulled successfully',
+      data: payload.data,
       action: 'pulled',
     };
   } catch (error) {
@@ -135,35 +146,35 @@ export const pushData = async (
       };
     }
 
-    const response = await authFetch(`${env.apiUrl}/api/sync`, {
+    const res = await authFetch(`${env.apiUrl}/api/sync`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      // better-fetch will set correct Content-Type + stringify for object body
+      body: {
         data: localData,
         lastSync,
-      }),
+      },
     });
+    console.log('[Sync] push result:', res);
 
-    if (!response.ok) {
-      return { success: false, message: 'Failed to push data' };
+    if (res.error || !res.data) {
+      const msg = res.error?.message || res.error?.error || 'Failed to push data';
+      return { success: false, message: msg };
     }
 
-    const result = await response.json();
+    const payload = res.data;
 
-    if (result.conflict) {
+    if (payload.conflict) {
       return {
         success: false,
-        message: result.message || 'Conflict detected',
-        data: result.serverData,
+        message: payload.message || 'Conflict detected',
+        data: payload.serverData,
         action: 'none',
       };
     }
 
     return {
       success: true,
-      message: 'Data pushed successfully',
+      message: payload.message || 'Data pushed successfully',
       action: 'pushed',
     };
   } catch (error) {
@@ -189,28 +200,45 @@ export const syncData = async (localData: DatabaseSchema): Promise<SyncResult> =
     localData.receipts?.length > 0;
   const hasRemoteData = status.hasData;
 
+  // Heuristic: treat unmodified demo/seed data (no org name set) as "not real local data"
+  // so that a fresh app after login will download remote data instead of pushing mock.
+  const looksSeeded =
+    !localData.meta?.organizationName ||
+    localData.meta.organizationName === '' ||
+    localData.meta.organizationName === 'Demo Store';
+
+  console.log('[Sync] syncData decision', {
+    hasRemoteData,
+    hasLocalData,
+    looksSeeded,
+    localLastUpdate,
+    remoteLastUpdate,
+  });
+
   if (!hasRemoteData && hasLocalData) {
+    console.log('[Sync] decision: push (no remote)');
     return pushData(localData, null);
   }
 
   if (hasRemoteData && !hasLocalData) {
+    console.log('[Sync] decision: pull (no local)');
     return pullData();
   }
 
   if (hasRemoteData && hasLocalData) {
-    const localDate = new Date(localLastUpdate);
+    const effectiveLocal = looksSeeded ? new Date(0).toISOString() : localLastUpdate;
+    const localDate = new Date(effectiveLocal);
     const remoteDate = new Date(remoteLastUpdate);
 
+    console.log('[Sync] compare dates (effectiveLocal for seeded?)', { looksSeeded, localDate, remoteDate });
+
     if (localDate > remoteDate) {
+      console.log('[Sync] decision: push (local newer)');
       return pushData(localData, status.lastSync);
-    } else if (remoteDate > localDate) {
-      return pullData();
     } else {
-      return {
-        success: true,
-        message: 'Data is up to date',
-        action: 'none',
-      };
+      // remote newer or equal or seeded -> prefer pull (download wins for new/mock apps)
+      console.log('[Sync] decision: pull (remote newer or seeded local)');
+      return pullData();
     }
   }
 
