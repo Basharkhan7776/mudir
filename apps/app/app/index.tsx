@@ -8,11 +8,10 @@ import {
   CreditCard,
   Search,
   Settings,
-  Cloud,
-  RefreshCw,
+  CloudUpload,
   ReceiptText,
 } from 'lucide-react-native';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Platform,
   ScrollView,
@@ -27,12 +26,9 @@ import { createStaggeredAnimation } from '@/lib/animations';
 import { Icon } from '@/components/ui/icon';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/lib/store';
-import { completeOnboarding, setSettings } from '@/lib/store/slices/settingsSlice';
-import { setCollections } from '@/lib/store/slices/inventorySlice';
-import { setLedger } from '@/lib/store/slices/ledgerSlice';
-import { setReceipts } from '@/lib/store/slices/receiptsSlice';
+import { completeOnboarding } from '@/lib/store/slices/settingsSlice';
 import { SearchModal } from '@/components/search-modal';
-import { onAuthChange, syncData, environment } from '@/lib/api';
+import { onAuthChange, pushData } from '@/lib/api';
 import { setUser, setLastSync } from '@/lib/store/slices/authSlice';
 
 export default function HomeScreen() {
@@ -41,7 +37,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const syncRef = useRef(false);
 
   const isNewUser = useSelector((state: RootState) => state.settings.isNewUser);
   const settings = useSelector((state: RootState) => state.settings);
@@ -71,12 +66,11 @@ export default function HomeScreen() {
     }
   }, [isNewUser]);
 
-  const performAutoSync = async () => {
-    if (!auth.isLoggedIn || syncRef.current) {
+  const handlePushData = async () => {
+    if (!auth.isLoggedIn) {
       return;
     }
 
-    syncRef.current = true;
     setIsSyncing(true);
 
     try {
@@ -93,26 +87,19 @@ export default function HomeScreen() {
         receipts: receipts,
       };
 
-      const result = await syncData(localData);
-      console.log('[Home] Auto-sync result:', result);
-
-      if (result.success && result.action === 'pulled' && result.data) {
-        dispatch(setSettings(result.data.meta));
-        dispatch(setCollections(result.data.collections));
-        dispatch(setLedger(result.data.ledger));
-        dispatch(setReceipts(result.data.receipts || []));
-      }
+      const result = await pushData(localData, null);
+      console.log('[Home] Push result:', result);
 
       if (result.success) {
         dispatch(setLastSync(new Date().toISOString()));
+        // Note: No pull on home - explicit push only per restructure
       } else {
-        console.log('[Home] Auto-sync did not succeed:', result.message);
+        console.log('[Home] Push did not succeed:', result.message);
       }
     } catch (error) {
-      console.error('[Home] Auto-sync error:', error);
+      console.error('[Home] Push error:', error);
     } finally {
       setIsSyncing(false);
-      syncRef.current = false;
     }
   };
 
@@ -124,11 +111,7 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, [dispatch]);
 
-  React.useEffect(() => {
-    if (auth.isLoggedIn && !isSyncing) {
-      performAutoSync();
-    }
-  }, [auth.isLoggedIn]);
+  // No automated sync on login per requirements - explicit push only
 
   const formatBalance = (amount: number) => {
     if (Math.abs(amount) >= 1000) {
@@ -150,11 +133,11 @@ export default function HomeScreen() {
           <View className="flex-row items-center gap-2">
             <Text className="text-4xl font-black tracking-tight text-foreground">Mudir</Text>
             {auth.isLoggedIn && (
-              <TouchableOpacity onPress={performAutoSync} disabled={isSyncing}>
+              <TouchableOpacity onPress={handlePushData} disabled={isSyncing}>
                 {isSyncing ? (
                   <ActivityIndicator size={12} className="mb-2 text-primary" />
                 ) : (
-                  <Icon as={Cloud} size={12} className="mb-2 text-primary" />
+                  <Icon as={CloudUpload} size={12} className="mb-2 text-primary" />
                 )}
               </TouchableOpacity>
             )}

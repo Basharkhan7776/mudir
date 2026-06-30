@@ -33,7 +33,8 @@ import {
   ArrowLeft,
   Cloud,
   CloudOff,
-  RefreshCw,
+  CloudUpload,
+  CloudDownload,
   LogOut,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -54,7 +55,8 @@ import { Icon } from '@/components/ui/icon';
 import { seedDatabase, clearDatabase, getSeedData } from '@/lib/seed';
 import {
   onAuthChange,
-  syncData,
+  pushData,
+  pullData,
   checkSyncStatus,
   environment,
   signInWithGoogle,
@@ -100,11 +102,25 @@ export default function SettingsScreen() {
             hasData: status.hasData,
           });
         });
+      } else {
+        setSyncStatus({ lastSync: null, hasData: false });
       }
     });
 
     return () => unsubscribe();
   }, [dispatch]);
+
+  // Ensure cloud status is fetched when settings mounts if already logged in
+  useEffect(() => {
+    if (auth.isLoggedIn) {
+      checkSyncStatus().then((status) => {
+        setSyncStatus({
+          lastSync: status.lastSync,
+          hasData: status.hasData,
+        });
+      });
+    }
+  }, [auth.isLoggedIn]);
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
@@ -138,9 +154,22 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const handleSync = async () => {
+  const refreshCloudStatus = async () => {
+    if (!auth.isLoggedIn) return;
+    try {
+      const status = await checkSyncStatus();
+      setSyncStatus({
+        lastSync: status.lastSync,
+        hasData: status.hasData,
+      });
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleUpload = async () => {
     if (!auth.isLoggedIn) {
-      Alert.alert('Not Signed In', 'Please sign in with Google to sync data');
+      Alert.alert('Not Signed In', 'Please sign in with Google to upload data');
       return;
     }
 
@@ -161,36 +190,55 @@ export default function SettingsScreen() {
         receipts: receipts.list,
       };
 
-      const result = await syncData(localData);
-      console.log('[Settings] Sync result:', result);
+      const result = await pushData(localData, null);
+      console.log('[Settings] Upload result:', result);
 
       if (result.success) {
-        if (result.action === 'pulled' && result.data) {
-          dispatch(setSettings(result.data.meta));
-          dispatch(setCollections(result.data.collections));
-          dispatch(setLedger(result.data.ledger));
-          dispatch(setReceipts(result.data.receipts || []));
-          setSuccessMessage('Data synced from cloud');
-        } else if (result.action === 'pushed') {
-          setSuccessMessage('Data synced to cloud');
-        } else {
-          setSuccessMessage(result.message);
-        }
+        setSuccessMessage('Data uploaded to server');
         setSuccessDialogOpen(true);
-
-        const status = await checkSyncStatus();
-        setSyncStatus({
-          lastSync: status.lastSync,
-          hasData: status.hasData,
-        });
-        dispatch(setLastSync(status.lastSync));
+        dispatch(setLastSync(new Date().toISOString()));
+        await refreshCloudStatus();
       } else {
-        console.log('[Settings] Sync failed result:', result);
-        Alert.alert('Sync Failed', result.message || 'Unknown sync error');
+        console.log('[Settings] Upload failed result:', result);
+        Alert.alert('Upload Failed', result.message || 'Unknown error');
       }
     } catch (error) {
-      console.error('[Settings] Sync error:', error);
-      Alert.alert('Sync Failed', (error as any)?.message || 'An error occurred while syncing data');
+      console.error('[Settings] Upload error:', error);
+      Alert.alert('Upload Failed', (error as any)?.message || 'An error occurred while uploading data');
+    } finally {
+      setIsSyncingLocal(false);
+      dispatch(setIsSyncing(false));
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!auth.isLoggedIn) {
+      Alert.alert('Not Signed In', 'Please sign in with Google to download data');
+      return;
+    }
+
+    setIsSyncingLocal(true);
+    dispatch(setIsSyncing(true));
+
+    try {
+      const result = await pullData();
+      console.log('[Settings] Download result:', result);
+
+      if (result.success && result.data) {
+        dispatch(setSettings(result.data.meta));
+        dispatch(setCollections(result.data.collections));
+        dispatch(setLedger(result.data.ledger));
+        dispatch(setReceipts(result.data.receipts || []));
+        setSuccessMessage('Data downloaded from server');
+        setSuccessDialogOpen(true);
+        await refreshCloudStatus();
+      } else {
+        console.log('[Settings] Download failed result:', result);
+        Alert.alert('Download Failed', result.message || 'No data found or unknown error');
+      }
+    } catch (error) {
+      console.error('[Settings] Download error:', error);
+      Alert.alert('Download Failed', (error as any)?.message || 'An error occurred while downloading data');
     } finally {
       setIsSyncingLocal(false);
       dispatch(setIsSyncing(false));
@@ -394,18 +442,20 @@ export default function SettingsScreen() {
                     </View>
                   </View>
 
-                  {syncStatus.lastSync && (
-                    <View className="border-t border-border px-4 py-2">
-                      <Text className="text-xs text-muted-foreground">
-                        Last synced: {new Date(syncStatus.lastSync).toLocaleString()}
-                      </Text>
-                    </View>
-                  )}
+                  {/* Always show last data references side-by-side per requirements */}
+                  <View className="border-t border-border px-4 py-2 gap-1">
+                    <Text className="text-xs text-muted-foreground">
+                      Last data locally: {settings.exportDate ? new Date(settings.exportDate).toLocaleString() : 'N/A'}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground">
+                      Last data in cloud: {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'None'}
+                    </Text>
+                  </View>
 
                   <Button
                     variant="ghost"
                     className="h-auto w-full flex-col items-stretch justify-start p-0"
-                    onPress={handleSync}
+                    onPress={handleUpload}
                     disabled={isSyncing}>
                     <View className="w-full flex-row items-center justify-between p-4">
                       <View className="flex-row items-center gap-3">
@@ -413,11 +463,33 @@ export default function SettingsScreen() {
                           {isSyncing ? (
                             <ActivityIndicator size={18} color="text-primary-foreground" />
                           ) : (
-                            <Icon as={RefreshCw} size={18} className="text-primary-foreground" />
+                            <Icon as={CloudUpload} size={18} className="text-primary-foreground" />
                           )}
                         </View>
                         <Text className="font-semibold text-foreground">
-                          {isSyncing ? 'Syncing...' : 'Sync Data'}
+                          {isSyncing ? 'Uploading...' : 'Upload data'}
+                        </Text>
+                      </View>
+                      <Icon as={ChevronRight} size={20} className="text-muted-foreground" />
+                    </View>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full flex-col items-stretch justify-start p-0"
+                    onPress={handleDownload}
+                    disabled={isSyncing}>
+                    <View className="w-full flex-row items-center justify-between p-4">
+                      <View className="flex-row items-center gap-3">
+                        <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
+                          {isSyncing ? (
+                            <ActivityIndicator size={18} color="text-primary-foreground" />
+                          ) : (
+                            <Icon as={CloudDownload} size={18} className="text-primary-foreground" />
+                          )}
+                        </View>
+                        <Text className="font-semibold text-foreground">
+                          {isSyncing ? 'Downloading...' : 'Download data'}
                         </Text>
                       </View>
                       <Icon as={ChevronRight} size={20} className="text-muted-foreground" />

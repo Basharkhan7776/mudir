@@ -85,7 +85,7 @@ router.get("/status", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/download", async (req, res) => {
   let session: any = null;
   let userId: string | null = null;
   try {
@@ -95,12 +95,12 @@ router.get("/", async (req, res) => {
 
     if (!session?.user) {
       setNoCache(res);
-      res.status(401).json({ error: "Unauthorized", message: "Authentication required to pull data" });
+      res.status(401).json({ error: "Unauthorized", message: "Authentication required to download data" });
       return;
     }
 
     userId = session.user.id;
-    console.log("[Sync] GET / (pull) for user", userId);
+    console.log("[Sync] GET /download for user", userId);
 
     const db = await getDb();
     const userDb = await db
@@ -116,7 +116,7 @@ router.get("/", async (req, res) => {
         dataHash: null,
         message: "No data found on server",
       };
-      console.log("[Sync] pull response (no data)", { userId });
+      console.log("[Sync] download response (no data)", { userId });
       res.json(resp);
       return;
     }
@@ -125,18 +125,18 @@ router.get("/", async (req, res) => {
       data: userDb.data,
       lastSync: userDb.lastSync,
       dataHash: userDb.dataHash,
-      message: "Data pulled successfully",
+      message: "Data downloaded successfully",
     };
-    console.log("[Sync] pull response", { userId, lastSync: resp.lastSync, dataHash: resp.dataHash });
+    console.log("[Sync] download response", { userId, lastSync: resp.lastSync, dataHash: resp.dataHash });
     res.json(resp);
   } catch (error) {
-    console.error("[Sync] GET error:", error, { userId });
+    console.error("[Sync] GET /download error:", error, { userId });
     setNoCache(res);
-    res.status(500).json({ error: "Internal server error", message: "Failed to pull sync data. See server logs." });
+    res.status(500).json({ error: "Internal server error", message: "Failed to download data. See server logs." });
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/upload", async (req, res) => {
   let session: any = null;
   let userId: string | null = null;
   try {
@@ -146,14 +146,14 @@ router.post("/", async (req, res) => {
 
     if (!session?.user) {
       setNoCache(res);
-      res.status(401).json({ error: "Unauthorized", message: "Authentication required to push data" });
+      res.status(401).json({ error: "Unauthorized", message: "Authentication required to upload data" });
       return;
     }
 
     userId = session.user.id;
     const { data, lastSync } = req.body;
 
-    console.log("[Sync] POST / (push) for user", userId, { hasLastSync: !!lastSync });
+    console.log("[Sync] POST /upload for user", userId, { hasLastSync: !!lastSync });
 
     if (!data) {
       setNoCache(res);
@@ -179,7 +179,7 @@ router.post("/", async (req, res) => {
       const serverLastSync = existing.lastSync;
 
       if (lastSync && serverLastSync > lastSync) {
-        console.log("[Sync] push conflict detected", { userId, clientLastSync: lastSync, serverLastSync });
+        console.log("[Sync] upload conflict detected", { userId, clientLastSync: lastSync, serverLastSync });
         setNoCache(res);
         res.json({
           conflict: true,
@@ -202,7 +202,7 @@ router.post("/", async (req, res) => {
           },
         },
       );
-      console.log("[Sync] push updated", { userId, newLastSync: now, dataHash, dataSize: formatBytes(dataSize) });
+      console.log("[Sync] upload updated", { userId, newLastSync: now, dataHash, dataSize: formatBytes(dataSize) });
     } else {
       await db.collection("databases").insertOne({
         userId,
@@ -213,7 +213,7 @@ router.post("/", async (req, res) => {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      console.log("[Sync] push inserted new", { userId, lastSync: now, dataHash, dataSize: formatBytes(dataSize) });
+      console.log("[Sync] upload inserted new", { userId, lastSync: now, dataHash, dataSize: formatBytes(dataSize) });
     }
 
     setNoCache(res);
@@ -221,12 +221,12 @@ router.post("/", async (req, res) => {
       success: true,
       lastSync: now,
       dataHash,
-      message: "Data pushed successfully",
+      message: "Data uploaded successfully",
     });
   } catch (error) {
-    console.error("[Sync] POST error:", error, { userId });
+    console.error("[Sync] POST /upload error:", error, { userId });
     setNoCache(res);
-    res.status(500).json({ error: "Internal server error", message: "Failed to push sync data. See server logs." });
+    res.status(500).json({ error: "Internal server error", message: "Failed to upload data. See server logs." });
   }
 });
 

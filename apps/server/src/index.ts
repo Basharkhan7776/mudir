@@ -13,7 +13,10 @@ app.use(express.json());
 // The @better-auth/expo plugin handles mobile OAuth flows automatically
 app.all(/^\/api\/auth/, toNodeHandler(auth));
 
-// Mount sync routes
+// Mount sync routes under /api/sync
+// - GET  /api/sync/status   → check remote data status
+// - GET  /api/sync/download → download data from server
+// - POST /api/sync/upload   → upload data to server
 app.use("/api/sync", syncRouter);
 
 app.get("/", (_req, res) => {

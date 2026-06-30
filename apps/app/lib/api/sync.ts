@@ -97,11 +97,11 @@ export const pullData = async (): Promise<SyncResult> => {
       return { success: false, message: 'Not authenticated' };
     }
 
-    const res = await authFetch(`${env.apiUrl}/api/sync`, {
+    const res = await authFetch(`${env.apiUrl}/api/sync/download`, {
       cache: 'no-store' as any,
       headers: { 'Cache-Control': 'no-cache, no-store' },
     });
-    console.log('[Sync] pull result:', res);
+    console.log('[Sync] download result:', res);
 
     if (res.error || !res.data) {
       const msg = res.error?.message || res.error?.error || 'Failed to fetch data';
@@ -116,13 +116,13 @@ export const pullData = async (): Promise<SyncResult> => {
 
     return {
       success: true,
-      message: payload.message || 'Data pulled successfully',
+      message: payload.message || 'Data downloaded successfully',
       data: payload.data,
       action: 'pulled',
     };
   } catch (error) {
-    console.error('[Sync] Pull error:', error);
-    return { success: false, message: 'Failed to pull data' };
+    console.error('[Sync] Download error:', error);
+    return { success: false, message: 'Failed to download data' };
   }
 };
 
@@ -146,7 +146,7 @@ export const pushData = async (
       };
     }
 
-    const res = await authFetch(`${env.apiUrl}/api/sync`, {
+    const res = await authFetch(`${env.apiUrl}/api/sync/upload`, {
       method: 'POST',
       // better-fetch will set correct Content-Type + stringify for object body
       body: {
@@ -154,10 +154,10 @@ export const pushData = async (
         lastSync,
       },
     });
-    console.log('[Sync] push result:', res);
+    console.log('[Sync] upload result:', res);
 
     if (res.error || !res.data) {
-      const msg = res.error?.message || res.error?.error || 'Failed to push data';
+      const msg = res.error?.message || res.error?.error || 'Failed to upload data';
       return { success: false, message: msg };
     }
 
@@ -174,73 +174,21 @@ export const pushData = async (
 
     return {
       success: true,
-      message: payload.message || 'Data pushed successfully',
+      message: payload.message || 'Data uploaded successfully',
       action: 'pushed',
     };
   } catch (error) {
-    console.error('[Sync] Push error:', error);
-    return { success: false, message: 'Failed to push data' };
+    console.error('[Sync] Upload error:', error);
+    return { success: false, message: 'Failed to upload data' };
   }
 };
 
+// DEPRECATED: syncData contained automated/smart decision logic for bidirectional sync.
+// We now use explicit pushData (upload) and pullData (download) directly from UI.
+// The function is kept only for potential backward compat but should not be called for new flows.
 export const syncData = async (localData: DatabaseSchema): Promise<SyncResult> => {
-  const session = await getSession();
-
-  if (!session) {
-    return { success: false, message: 'Not authenticated' };
-  }
-
-  const status = await getSyncStatus();
-  const localLastUpdate = localData.meta?.exportDate || new Date(0).toISOString();
-  const remoteLastUpdate = status.lastSync || new Date(0).toISOString();
-
-  const hasLocalData =
-    localData.collections?.length > 0 ||
-    localData.ledger?.length > 0 ||
-    localData.receipts?.length > 0;
-  const hasRemoteData = status.hasData;
-
-  // Heuristic: treat unmodified demo/seed data (no org name set) as "not real local data"
-  // so that a fresh app after login will download remote data instead of pushing mock.
-  const looksSeeded =
-    !localData.meta?.organizationName ||
-    localData.meta.organizationName === '' ||
-    localData.meta.organizationName === 'Demo Store';
-
-  console.log('[Sync] syncData decision', {
-    hasRemoteData,
-    hasLocalData,
-    looksSeeded,
-    localLastUpdate,
-    remoteLastUpdate,
-  });
-
-  if (!hasRemoteData && hasLocalData) {
-    console.log('[Sync] decision: push (no remote)');
-    return pushData(localData, null);
-  }
-
-  if (hasRemoteData && !hasLocalData) {
-    console.log('[Sync] decision: pull (no local)');
-    return pullData();
-  }
-
-  if (hasRemoteData && hasLocalData) {
-    const effectiveLocal = looksSeeded ? new Date(0).toISOString() : localLastUpdate;
-    const localDate = new Date(effectiveLocal);
-    const remoteDate = new Date(remoteLastUpdate);
-
-    console.log('[Sync] compare dates (effectiveLocal for seeded?)', { looksSeeded, localDate, remoteDate });
-
-    if (localDate > remoteDate) {
-      console.log('[Sync] decision: push (local newer)');
-      return pushData(localData, status.lastSync);
-    } else {
-      // remote newer or equal or seeded -> prefer pull (download wins for new/mock apps)
-      console.log('[Sync] decision: pull (remote newer or seeded local)');
-      return pullData();
-    }
-  }
-
-  return { success: false, message: 'No data to sync' };
+  // For new explicit upload/download, call pushData / pullData directly instead.
+  // This function is intentionally left with old logic but marked deprecated.
+  console.warn('[Sync] syncData is deprecated. Use pushData for upload or pullData for download explicitly.');
+  return { success: false, message: 'Deprecated syncData called - use explicit upload/download' };
 };
