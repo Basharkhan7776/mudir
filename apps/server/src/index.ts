@@ -8,6 +8,10 @@ import os from "os";
 
 const app = express();
 
+// Trust proxy headers (X-Forwarded-Proto etc.) so better-auth correctly detects HTTPS
+// when the app is deployed behind a reverse proxy / load balancer (common in prod).
+app.set('trust proxy', 1);
+
 app.use(express.json());
 
 // The @better-auth/expo plugin handles mobile OAuth flows automatically
