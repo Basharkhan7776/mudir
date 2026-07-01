@@ -8,7 +8,7 @@ import { RootState } from '@/lib/store';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Plus, Trash2, Check, X, Pencil, Share } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Pressable, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeOutUp, FadeOutDown, LinearTransition } from 'react-native-reanimated';
@@ -379,7 +379,7 @@ export default function ReceiptDetailsScreen() {
                 setIsAddItemModalOpen(false);
                 setEditingItemId(null);
             }} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView behavior="padding">
               <View className="rounded-t-3xl bg-card pt-4 pb-4">
               <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                 <Text className="text-xl font-bold text-foreground">

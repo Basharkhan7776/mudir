@@ -12,7 +12,7 @@ import { RootState } from '@/lib/store';
 import { Stack, useRouter, Link } from 'expo-router';
 import { Plus, Trash2, ChevronRight, Pencil, ArrowLeft, X, Check } from 'lucide-react-native';
 import React, { useState, useMemo } from 'react';
-import { View, Pressable, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Pressable, TouchableOpacity, Modal, KeyboardAvoidingView, ScrollView } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOutUp,
@@ -361,7 +361,7 @@ export default function LedgerScreen() {
           onRequestClose={closeDialog}>
             <View className="flex-1 justify-end bg-black/50">
               <Pressable className="absolute inset-0" onPress={closeDialog} />
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <KeyboardAvoidingView behavior="padding">
                 <View className="rounded-t-3xl bg-card pt-4 pb-4">
                 <View className="flex-row items-center justify-between px-5 pb-4 border-b border-border">
                   <Text className="text-xl font-bold text-foreground">
